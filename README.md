@@ -16,14 +16,34 @@ O código aqui publicado é referenciado no **Relato de Experiência em Blockcha
 
 ## Stack Técnica
 
-- **Solidity ^0.8.24** — mesma da RBB (Besu/EVM-compatível)
-- **Hyperledger Besu** com consenso Clique (rede local) e compatibilidade direta com a RBB
+- **Solidity ^0.8.28** compilado para `evmVersion: london` — idêntico à RBB em produção
+- **Hyperledger Besu** com consenso **QBFT** (mesmo da RBB)
 - **Hardhat** (framework de desenvolvimento)
-- **OpenZeppelin Contracts v5** (ERC-721, ERC-1155, AccessControl)
+- **OpenZeppelin Contracts 5.1.0** (ERC-721, ERC-1155, AccessControl) — versão pré-`mcopy`, compatível com London
 - **TypeScript** (testes, scripts e tipagem)
 - **PHP 7.4+** e **ethers.js v6** (plugin WordPress)
 
 ## Como rodar localmente
+
+### Caminho rápido (um comando)
+
+```bash
+./scripts/serve-local.sh
+```
+
+Esse script, a partir de um estado limpo, faz as seguintes ações:
+
+1. Reseta os volumes do Besu e sobe 3 nós QBFT
+2. Deploy dos contratos na ordem determinística (selo → certificados → rastreabilidade)
+3. Popula o lote #1 de soja (cadeia Rio Verde/GO → Rotterdam, com certificado EUDR)
+4. Sobe um WordPress local via `@wp-now` com o plugin já configurado e uma página demo pronta
+
+Ao terminar, abra:
+
+- **[http://localhost:8881](http://localhost:8881)** — WordPress com a página demo (3 widgets de verificação apontando pros contratos)
+- **http://127.0.0.1:8545** — RPC do Besu local
+
+### Caminho manual (para desenvolver)
 
 ```bash
 # 1. Subir rede Besu local (Docker)
@@ -32,18 +52,23 @@ cd rede-local && ./scripts/start.sh
 # 2. Instalar dependências e compilar contratos
 cd ../contratos && pnpm install && pnpm hardhat compile
 
-# 3. Rodar testes
-pnpm hardhat test
+# 3. Rodar testes unitários (Hardhat Network, sem Docker)
+pnpm test
 
 # 4. Deploy em rede local
-pnpm hardhat run selo-digital-associado/scripts/deploy.ts --network rbbLocal
+pnpm deploy:selo --network rbbLocal
+pnpm deploy:certificados --network rbbLocal
+pnpm deploy:rastreabilidade --network rbbLocal
+
+# 5. Demo end-to-end (Rio Verde → Rotterdam)
+pnpm demo:cadeia-soja --network rbbLocal
 ```
 
 Consulte o README de cada aplicação para detalhes específicos.
 
 ## Contexto da ACIEG na RBB
 
-A ACIEG é entidade privada sem fins lucrativos de âmbito estadual (Goiás), fundada em 1952, reunindo representativamente o setor produtivo goiano — comércio, indústria e serviços. A adesão à RBB visa oferecer aos associados da ACIEG aplicações digitais baseadas em blockchain com **custo operacional zero por transação** (característica da rede pública-permissionada) e **integração imediata com o ecossistema institucional brasileiro** (BNDES, TCU, Dataprev, Serpro, CPQD, RNP, PUC-RJ, entre outros partícipes).
+A ACIEG é entidade privada sem fins lucrativos de âmbito estadual (Goiás), fundada em 1952, reunindo representativamente o setor produtivo goiano — comércio, indústria e serviços. A adesão à RBB visa oferecer aos associados da ACIEG aplicações digitais baseadas em blockchain com **integração imediata com o ecossistema institucional brasileiro** (BNDES, TCU, Dataprev, Serpro, CPQD, RNP, PUC-RJ, PRODEMGE, entre outros partícipes).
 
 ## Licença
 

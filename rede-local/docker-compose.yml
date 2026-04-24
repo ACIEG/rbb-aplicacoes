@@ -57,6 +57,8 @@ services:
       - --node-private-key-file=/config/node/key
       - --p2p-host=0.0.0.0
       - --p2p-port=30303
+      - --Xdns-enabled=true
+      - --Xdns-update-enabled=true
       - --bootnodes=enode://ab45e414c97d79307c246b887290ae6bdc880fa8b270b05fea413db8a2f7ce56d3f78ff41b44f14bfddfbb97953c89beb4b161fc8e95a8bd6a3396a1e6fbc5a6@node01:30303
       - --rpc-http-enabled=true
       - --rpc-http-host=0.0.0.0
@@ -87,6 +89,8 @@ services:
       - --node-private-key-file=/config/node/key
       - --p2p-host=0.0.0.0
       - --p2p-port=30303
+      - --Xdns-enabled=true
+      - --Xdns-update-enabled=true
       - --bootnodes=enode://ab45e414c97d79307c246b887290ae6bdc880fa8b270b05fea413db8a2f7ce56d3f78ff41b44f14bfddfbb97953c89beb4b161fc8e95a8bd6a3396a1e6fbc5a6@node01:30303
       - --rpc-http-enabled=true
       - --rpc-http-host=0.0.0.0

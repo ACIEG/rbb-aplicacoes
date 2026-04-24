@@ -70,7 +70,7 @@ class Acieg_Rbb_Admin_Settings {
 	public function sanitize( $input ) {
 		$clean = array();
 		$clean['rpc_url']       = isset( $input['rpc_url'] ) ? esc_url_raw( $input['rpc_url'] ) : '';
-		$clean['chain_id']      = isset( $input['chain_id'] ) ? absint( $input['chain_id'] ) : 0;
+		$clean['chain_id']      = isset( $input['chain_id'] ) ? preg_replace( '/\D/', '', (string) $input['chain_id'] ) : '';
 		$clean['explorer_base'] = isset( $input['explorer_base'] ) ? esc_url_raw( $input['explorer_base'] ) : '';
 		foreach ( array(
 			'address_selo',

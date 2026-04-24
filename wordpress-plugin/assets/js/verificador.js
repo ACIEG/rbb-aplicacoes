@@ -63,7 +63,10 @@
   var provider = null;
   function getProvider() {
     if (!provider) {
-      provider = new ethers.JsonRpcProvider(cfg.rpcUrl, { chainId: cfg.chainId, name: "rbb" });
+      // Auto-detect da rede: ethers v6 dispara eth_chainId na primeira call e
+      // monta o objeto Network internamente. Evita problemas de coerção com
+      // chainIds grandes (>2^31) recebidos como string do PHP.
+      provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
     }
     return provider;
   }
@@ -391,7 +394,9 @@
         }
       } catch (err) {
         console.error("[ACIEG RBB]", err);
-        setError(el, i18n.consultError || "Erro ao consultar.");
+        var detalhe = (err && (err.shortMessage || err.message || err.code)) || "";
+        var base = i18n.consultError || "Erro ao consultar.";
+        setError(el, detalhe ? base + " (" + String(detalhe).slice(0, 160) + ")" : base);
       }
     });
 
