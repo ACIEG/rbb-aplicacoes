@@ -1,0 +1,43 @@
+# Node / Hardhat / TypeScript
+node_modules/
+.pnpm-store/
+dist/
+build/
+cache/
+artifacts/
+typechain-types/
+coverage/
+coverage.json
+*.tsbuildinfo
+
+# Env / credenciais
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# Docker / Besu (rede local)
+rede-local/data/
+rede-local/logs/
+rede-local/.env
+
+# WordPress
+wordpress-plugin/vendor/
+wordpress-plugin/.wp-env.override.json
+wordpress-plugin/*.zip
+wordpress-plugin/languages/*.mo
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
