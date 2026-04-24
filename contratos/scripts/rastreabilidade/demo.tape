@@ -18,7 +18,7 @@ Set BorderRadius 10
 Set Shell "zsh"
 
 Hide
-Type "cd /Users/renansantana/conductor/workspaces/rbb-aplicacoes/buffalo/contratos"
+Type "cd \"$(git rev-parse --show-toplevel)/contratos\""
 Enter
 Type "setopt INTERACTIVE_COMMENTS"
 Enter

@@ -34,9 +34,9 @@ cd "$ROOT/rede-local"
 ./scripts/start.sh
 # Espera a rede realmente começar a produzir blocos antes de tentar o deploy.
 echo "    aguardando primeiro bloco QBFT..."
-until [ "$(curl -s -X POST -H 'Content-Type: application/json' \
+until curl -s -X POST -H 'Content-Type: application/json' \
     --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
-    http://127.0.0.1:8545 | sed -E 's/.*"result":"0x([0-9a-f]+)".*/\1/')" != "0" ]; do
+    http://127.0.0.1:8545 | grep -qE '"result":"0x[1-9a-f]'; do
   sleep 2
 done
 echo "    rede no ar."
