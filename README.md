@@ -51,7 +51,4 @@ Código distribuído sob [Apache License 2.0](LICENSE).
 
 ## Contato
 
-- **ACIEG** — [acieg.com.br](https://acieg.com.br)
-- **Head of Innovation** — Pedro Renan Ferreira de Santana
-- **Presidente** — Rubens José Filéti
-- **Governança da RBB** — rbb@bndes.gov.br
+renansantana@acieg.com.br
