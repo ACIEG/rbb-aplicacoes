@@ -126,7 +126,7 @@ class Acieg_Rbb_Plugin {
 		$settings = self::get_settings();
 		return array(
 			'rpcUrl'       => esc_url_raw( $settings['rpc_url'] ),
-			'chainId'      => (int) $settings['chain_id'],
+			'chainId'      => preg_replace( '/\D/', '', (string) $settings['chain_id'] ),
 			'contracts'    => array(
 				'selo'              => $settings['address_selo'],
 				'certificado'       => $settings['address_certificado'],
@@ -175,7 +175,7 @@ class Acieg_Rbb_Plugin {
 	public static function get_settings() {
 		$defaults = array(
 			'rpc_url'                            => 'http://127.0.0.1:8545',
-			'chain_id'                           => 121200149999,
+			'chain_id'                           => '121200149999',
 			'address_selo'                       => '',
 			'address_certificado'                => '',
 			'address_registro_produtores'        => '',

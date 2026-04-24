@@ -1,0 +1,20 @@
+{
+  "landingPage": "/demo-rbb/",
+  "preferredVersions": { "php": "8.0", "wp": "latest" },
+  "login": true,
+  "steps": [
+    {
+      "step": "defineWpConfigConsts",
+      "consts": {
+        "ACIEG_RBB_DEMO_MODE": true
+      }
+    },
+    {
+      "step": "setSiteOptions",
+      "options": {
+        "blogname": "ACIEG · Demo RBB",
+        "blogdescription": "Verificador on-chain"
+      }
+    }
+  ]
+}

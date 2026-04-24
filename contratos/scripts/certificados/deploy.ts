@@ -15,10 +15,11 @@ async function main() {
   const endereco = await cert.getAddress();
   console.log(`CertificadoCapacitacao deployado em: ${endereco}`);
 
-  const dir = join(__dirname, "..", "deployments");
+  const dir = join(__dirname, "..", "..", "deployments");
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  const arquivo = `certificados-${network.name}.json`;
   writeFileSync(
-    join(dir, `${network.name}.json`),
+    join(dir, arquivo),
     JSON.stringify(
       {
         network: network.name,
@@ -31,7 +32,7 @@ async function main() {
       2
     ) + "\n"
   );
-  console.log(`Deployment registrado em deployments/${network.name}.json`);
+  console.log(`Deployment registrado em deployments/${arquivo}`);
 }
 
 main().catch((err) => {

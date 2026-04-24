@@ -30,3 +30,8 @@ require_once ACIEG_RBB_PLUGIN_DIR . 'includes/shortcodes/class-rastreabilidade-s
 require_once ACIEG_RBB_PLUGIN_DIR . 'admin/class-admin-settings.php';
 
 add_action( 'plugins_loaded', array( 'Acieg_Rbb_Plugin', 'instance' ) );
+
+// Demo mode: só ativa quando rodando via @wp-now com o blueprint local.
+if ( defined( 'ACIEG_RBB_DEMO_MODE' ) && ACIEG_RBB_DEMO_MODE ) {
+	require_once ACIEG_RBB_PLUGIN_DIR . 'includes/class-acieg-rbb-demo-bootstrap.php';
+}

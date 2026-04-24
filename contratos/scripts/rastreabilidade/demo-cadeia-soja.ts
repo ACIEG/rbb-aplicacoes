@@ -1,4 +1,6 @@
 import { ethers, network } from "hardhat";
+import { writeFileSync, mkdirSync, existsSync } from "fs";
+import { join } from "path";
 
 /**
  * Demo end-to-end: cadeia de custódia de um lote de soja saindo de Rio Verde/GO
@@ -11,6 +13,10 @@ import { ethers, network } from "hardhat";
  *   #3 (transportador) — representa caminhoneiro/ferrovia/porto
  *   #4 (exportador) — trading company que vende para importador europeu
  */
+
+const PAUSE_MS = Number(process.env.DEMO_PAUSE_MS ?? 0);
+const pausa = () =>
+  PAUSE_MS > 0 ? new Promise((r) => setTimeout(r, PAUSE_MS)) : Promise.resolve();
 
 const SETOR_AGROPECUARIA = 1;
 const COMMODITY_SOJA = 1;
@@ -42,8 +48,9 @@ async function main() {
   await cert.waitForDeployment();
   console.log(`CertificadosConformidade: ${await cert.getAddress()}`);
 
+  await pausa();
   console.log("\n=== 2. ACIEG cadastra produtor goiano ===");
-  await reg.cadastrar(
+  await (await reg.cadastrar(
     produtor.address,
     "12345678000199",
     "Fazenda Boa Vista Ltda",
@@ -52,14 +59,16 @@ async function main() {
     -17850000,
     -50926000,
     SETOR_AGROPECUARIA
-  );
+  )).wait();
   console.log(`Produtor cadastrado: ${produtor.address}`);
   console.log(`CAR: GO-5218907-AB12 | Localização: Rio Verde/GO (-17.85, -50.926)`);
 
+  await pausa();
   console.log("\n=== 3. ACIEG autoriza IBD Certificações ===");
-  await cert.grantRole(await cert.CERTIFICADORA_ROLE(), certificadora.address);
+  await (await cert.grantRole(await cert.CERTIFICADORA_ROLE(), certificadora.address)).wait();
   console.log(`Certificadora habilitada: ${certificadora.address}`);
 
+  await pausa();
   console.log("\n=== 4. Produtor cria lote de 50t de soja ===");
   const dataColheita = Math.floor(Date.now() / 1000);
   const txLote = await lote
@@ -68,10 +77,11 @@ async function main() {
   await txLote.wait();
   console.log(`Lote #1 criado — 50.000 kg de soja — código RIV-2026-S-0042`);
 
+  await pausa();
   console.log("\n=== 5. Cadeia de custódia ===");
   const hashNF = (texto: string) => ethers.keccak256(ethers.toUtf8Bytes(texto));
 
-  await lote
+  await (await lote
     .connect(produtor)
     .registrarEvento(
       1,
@@ -80,10 +90,10 @@ async function main() {
       "Transporte Fazenda -> Silo Comigo",
       hashNF("NF-001-FAZENDA"),
       "Caminhao granel ABC-1234"
-    );
+    )).wait();
   console.log(`  -> Transporte para Silo Comigo (hash NF registrado)`);
 
-  await lote
+  await (await lote
     .connect(transportador)
     .registrarEvento(
       1,
@@ -92,10 +102,10 @@ async function main() {
       "Silo Cooperativa Comigo - Rio Verde",
       hashNF("CTRC-002-SILO"),
       "Secagem e classificacao"
-    );
+    )).wait();
   console.log(`  -> Armazenagem em silo`);
 
-  await lote
+  await (await lote
     .connect(transportador)
     .registrarEvento(
       1,
@@ -104,10 +114,10 @@ async function main() {
       "Porto de Santos/SP (Tecon)",
       hashNF("BL-003-SANTOS"),
       "Ferrovia Rumo + caminhao ate terminal"
-    );
+    )).wait();
   console.log(`  -> Chegada ao Porto de Santos`);
 
-  await lote
+  await (await lote
     .connect(exportador)
     .registrarEvento(
       1,
@@ -116,12 +126,13 @@ async function main() {
       "Embarque navio MV Santos Star",
       hashNF("BL-004-CONTAINER-MSK-7733"),
       "Container MSKU-7733912 destino Rotterdam"
-    );
+    )).wait();
   console.log(`  -> Exportação (navio MV Santos Star, destino Rotterdam)`);
 
+  await pausa();
   console.log("\n=== 6. Certificadora emite EUDR ===");
   const umAno = dataColheita + 365 * 24 * 60 * 60;
-  await cert
+  await (await cert
     .connect(certificadora)
     .emitir(
       1,
@@ -130,10 +141,10 @@ async function main() {
       umAno,
       hashNF("PDF-CERT-EUDR-IBD-2026-0042"),
       "Lote auditado conforme Regulamento EU 2023/1115"
-    );
+    )).wait();
   console.log(`Certificado EUDR #1 emitido pela IBD Certificações`);
 
-  await lote
+  await (await lote
     .connect(exportador)
     .registrarEvento(
       1,
@@ -142,9 +153,10 @@ async function main() {
       "Terminal Rotterdam - Importador XYZ",
       hashNF("DECL-007-EU-IMPORT"),
       "Recepcao e liberacao alfandegaria"
-    );
+    )).wait();
   console.log(`  -> Entrega final em Rotterdam`);
 
+  await pausa();
   console.log("\n=== 7. Consulta final: comprador europeu verifica o lote ===");
   const [info, eventos] = await lote.historicoCompleto(1);
   const temEUDR = await cert.temCertificadoValido(1, TIPO_EUDR);
@@ -176,11 +188,45 @@ async function main() {
     },
   };
 
-  console.log(JSON.stringify(relatorio, null, 2));
-
-  console.log(
-    `\nResumo: ${eventos.length} eventos registrados on-chain, certificado EUDR ${temEUDR ? "VÁLIDO" : "INVÁLIDO"}. Consulta replicável por qualquer comprador europeu via RPC público.`
+  const dir = join(__dirname, "..", "..", "deployments");
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, `relatorio-lote-1-${network.name}.json`),
+    JSON.stringify(relatorio, null, 2) + "\n"
   );
+  writeFileSync(
+    join(dir, `rastreabilidade-${network.name}.json`),
+    JSON.stringify(
+      {
+        network: network.name,
+        deployer: admin.address,
+        RegistroProdutores: await reg.getAddress(),
+        RastreabilidadeLote: await lote.getAddress(),
+        CertificadosConformidade: await cert.getAddress(),
+        deployedAt: new Date().toISOString(),
+      },
+      null,
+      2
+    ) + "\n"
+  );
+
+  const linha = "─".repeat(64);
+  const abrev = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+  console.log(linha);
+  console.log(`  Lote #${relatorio.lote.tokenId} · ${relatorio.lote.codigoInterno} · ${(relatorio.lote.quantidadeKg / 1000).toFixed(0)}t de soja`);
+  console.log(`  Produtor: ${abrev(relatorio.lote.produtor)} · Colheita: ${relatorio.lote.dataColheita.slice(0, 10)}`);
+  console.log(linha);
+  console.log("  Trajeto on-chain:");
+  eventos.forEach((e, i) => {
+    const tipo = tipoNome(e.tipo).padEnd(14);
+    const local = e.localNome.length > 32 ? e.localNome.slice(0, 29) + "…" : e.localNome;
+    console.log(`   ${String(i + 1).padStart(2)}. ${tipo} ${local}`);
+  });
+  console.log(linha);
+  console.log(`  Certificado EUDR:  ${temEUDR ? "VÁLIDO ✓" : "INVÁLIDO ✗"}   (ID #${certIds.map(Number).join(", ")}, emissor: IBD)`);
+  console.log(`  Auditável por:     qualquer RPC público da RBB`);
+  console.log(`  Relatório JSON:    deployments/relatorio-lote-1-${network.name}.json`);
+  console.log(linha);
 }
 
 main().catch((err) => {

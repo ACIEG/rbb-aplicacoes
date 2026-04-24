@@ -41,3 +41,16 @@ Thumbs.db
 npm-debug.log*
 pnpm-debug.log*
 yarn-error.log*
+
+# VHS demo outputs (gerados a partir de .tape)
+*.mp4
+*.gif
+*.webm
+
+# Deploys locais e saídas de demo — regeneráveis.
+# Artefatos da RBB real (ex.: selo-rbb.json) DEVEM ser commitados.
+contratos/deployments/*rbbLocal*.json
+contratos/deployments/*hardhat*.json
+contratos/deployments/*localhost*.json
+contratos/deployments/relatorio-*.json
+contratos/scripts/deployments/

@@ -23,14 +23,12 @@ async function main() {
     txHash: selo.deploymentTransaction()?.hash,
   };
 
-  const dir = join(__dirname, "..", "deployments");
+  const dir = join(__dirname, "..", "..", "deployments");
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    join(dir, `${network.name}.json`),
-    JSON.stringify(out, null, 2) + "\n"
-  );
+  const arquivo = `selo-${network.name}.json`;
+  writeFileSync(join(dir, arquivo), JSON.stringify(out, null, 2) + "\n");
 
-  console.log(`Deployment registrado em deployments/${network.name}.json`);
+  console.log(`Deployment registrado em deployments/${arquivo}`);
 }
 
 main().catch((err) => {
