@@ -1,0 +1,276 @@
+/* ACIEG RBB Verificador — estilos do frontend */
+
+.acieg-rbb-widget {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  max-width: 680px;
+  margin: 1.5rem auto;
+  padding: 1.5rem;
+  border: 1px solid #e2e4e7;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.acieg-rbb-widget label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+  color: #1e1e1e;
+  font-size: 0.925rem;
+}
+
+.acieg-rbb-input,
+.acieg-rbb-file {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #ccced1;
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  margin-bottom: 0.75rem;
+}
+
+.acieg-rbb-input:focus {
+  outline: none;
+  border-color: #2271b1;
+  box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.15);
+}
+
+.acieg-rbb-btn {
+  background: #1b6d3a; /* verde Goiás */
+  color: #ffffff;
+  border: none;
+  padding: 0.625rem 1.5rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.acieg-rbb-btn:hover,
+.acieg-rbb-btn:focus {
+  background: #155e30;
+}
+
+.acieg-rbb-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #e2e4e7;
+}
+
+.acieg-rbb-tab {
+  background: transparent;
+  border: none;
+  padding: 0.625rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: #505050;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+
+.acieg-rbb-tab-active {
+  color: #1b6d3a;
+  font-weight: 600;
+  border-bottom-color: #1b6d3a;
+}
+
+.acieg-rbb-result {
+  margin-top: 1rem;
+}
+
+.acieg-rbb-loading {
+  color: #505050;
+  font-style: italic;
+  padding: 0.75rem;
+}
+
+.acieg-rbb-msg {
+  padding: 1rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.acieg-rbb-msg-error {
+  background: #fcf0f1;
+  color: #b32d2e;
+  border: 1px solid #e79090;
+}
+
+.acieg-rbb-msg-warn {
+  background: #fcf9e8;
+  color: #8a6d00;
+  border: 1px solid #e6d98f;
+}
+
+.acieg-rbb-card {
+  background: #f8f9fa;
+  border: 1px solid #e2e4e7;
+  border-radius: 6px;
+  padding: 1.25rem;
+}
+
+.acieg-rbb-card h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.acieg-rbb-card h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  color: #1e1e1e;
+}
+
+.acieg-rbb-card dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.375rem 1rem;
+  margin: 0;
+}
+
+.acieg-rbb-card dt {
+  font-weight: 600;
+  color: #505050;
+}
+
+.acieg-rbb-card dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.acieg-rbb-card code {
+  font-family: "SF Mono", Monaco, "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+}
+
+.acieg-rbb-badge {
+  display: inline-block;
+  padding: 0.2rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.acieg-rbb-badge-ativo,
+.acieg-rbb-badge-válido {
+  background: #d5e8d4;
+  color: #1b6d3a;
+}
+
+.acieg-rbb-badge-revogado,
+.acieg-rbb-badge-inválido {
+  background: #f7c6c7;
+  color: #a0181b;
+}
+
+.acieg-rbb-badge-expirado {
+  background: #fcf2cc;
+  color: #8a6d00;
+}
+
+.acieg-rbb-timeline {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.75rem 0;
+  position: relative;
+}
+
+.acieg-rbb-timeline::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e2e4e7;
+}
+
+.acieg-rbb-evento {
+  position: relative;
+  padding-left: 2.5rem;
+  padding-bottom: 1rem;
+}
+
+.acieg-rbb-evento-num {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  background: #1b6d3a;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  z-index: 1;
+}
+
+.acieg-rbb-evento-header {
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.acieg-rbb-evento-meta {
+  font-size: 0.85rem;
+  color: #505050;
+  line-height: 1.5;
+}
+
+.acieg-rbb-certs {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+
+.acieg-rbb-certs li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e2e4e7;
+}
+
+.acieg-rbb-certs li:last-child {
+  border-bottom: none;
+}
+
+.acieg-rbb-link {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.acieg-rbb-link a {
+  color: #1b6d3a;
+  font-weight: 600;
+}
+
+.acieg-rbb-form {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 480px) {
+  .acieg-rbb-widget {
+    padding: 1rem;
+  }
+  .acieg-rbb-card dl {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+  .acieg-rbb-card dt {
+    margin-top: 0.5rem;
+  }
+}
