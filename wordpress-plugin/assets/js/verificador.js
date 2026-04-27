@@ -89,7 +89,10 @@
     if (!raw) return null;
     try {
       var u = new URL(String(raw));
-      return schemesPermitidos.indexOf(u.protocol) >= 0 ? u.toString() : null;
+      if (schemesPermitidos.indexOf(u.protocol) < 0) return null;
+      // http/https: re-serialize (normaliza host). Outros schemes (ex: ipfs:): preserva
+      // o original — o construtor URL lowercaseia a authority, corrompendo CIDv0 base58.
+      return (u.protocol === "http:" || u.protocol === "https:") ? u.toString() : String(raw);
     } catch (e) {
       return null;
     }
@@ -385,7 +388,8 @@
     if (!setor) {
       // sem eventos ainda: tenta inferir pelo commoditySlug (heurística simples)
       var slug = info.commoditySlug || "";
-      if (/^(SOJA|MILHO|CAFE|CACAU|CANA|ALGODAO|MADEIRA|BORRACHA|OLEO|SEMENTE_)/i.test(slug)) setor = "vegetal";
+      if (/^(SOJA|MILHO|CAFE|CACAU|CANA|ALGODAO|BORRACHA|OLEO|SEMENTE_)/i.test(slug)) setor = "vegetal";
+      else if (/^MADEIRA/i.test(slug)) setor = "madeira";
       else if (/^CARNE_BOVINA|^LEITE/i.test(slug)) setor = "bovino";
       else if (/^CARNE_SUINA/i.test(slug)) setor = "suino";
       else if (/^CARNE_OVINA/i.test(slug)) setor = "ovino";
