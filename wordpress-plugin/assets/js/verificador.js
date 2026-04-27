@@ -77,6 +77,24 @@
     return d.innerHTML;
   }
 
+  // Escape para contexto de atributo HTML (esc() escapa só <,>,& — não aspas).
+  function escAttr(s) {
+    return esc(s).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  // Valida URL via construtor URL (parseia + re-serializa) com whitelist de
+  // schemes. Retorna null se malformado ou scheme não permitido — defesa em
+  // profundidade contra XSS via poligonoURI controlado por CADASTRADOR_ROLE.
+  function sanitizarUrl(raw, schemesPermitidos) {
+    if (!raw) return null;
+    try {
+      var u = new URL(String(raw));
+      return schemesPermitidos.indexOf(u.protocol) >= 0 ? u.toString() : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function fmtDate(ts) {
     if (!ts || ts === 0n) return "—";
     try {
@@ -385,9 +403,9 @@
       try {
         var reg = new ethers.Contract(addrReg, ABI_REG, prov);
         var prod = await reg.dadosProdutor(info.produtor);
-        var safePoligonoUri = /^https?:\/\//i.test(prod.poligonoURI) || /^ipfs:\/\//i.test(prod.poligonoURI) ? prod.poligonoURI : null;
+        var safePoligonoUri = sanitizarUrl(prod.poligonoURI, ["http:", "https:", "ipfs:"]);
         var poligonoLink = safePoligonoUri
-          ? '<a href="' + esc(safePoligonoUri) + '" target="_blank" rel="noopener">' + esc(i18n.verPoligono || "Ver polígono CAR") + "</a>"
+          ? '<a href="' + escAttr(safePoligonoUri) + '" target="_blank" rel="noopener">' + esc(i18n.verPoligono || "Ver polígono CAR") + "</a>"
           : "—";
         origemHtml =
           "<dl>" +
@@ -582,11 +600,13 @@
 
   function linkExplorer(addr) {
     if (!cfg.explorerBase || !addr) return "";
+    // Sanitiza explorerBase (vem do settings do plugin) com whitelist de schemes.
+    var base = sanitizarUrl(cfg.explorerBase, ["http:", "https:"]);
+    if (!base) return "";
+    var url = base.replace(/\/$/, "") + "/address/" + encodeURIComponent(addr);
     return (
       '<p class="acieg-rbb-link"><a href="' +
-      cfg.explorerBase.replace(/\/$/, "") +
-      "/address/" +
-      encodeURIComponent(addr) +
+      escAttr(url) +
       '" target="_blank" rel="noopener">' +
       esc(i18n.verNaBlockchain || "Ver na blockchain") +
       "</a></p>"
