@@ -33,6 +33,7 @@ const CTE_NOME = [
 const TIPO_CERT = ["NAO_DEFINIDO", "EUDR", "ESG", "ORGANICO", "GMO_FREE", "FAIR_TRADE", "OUTRO"];
 
 type EventoOut = {
+  kind: "evento";
   cte: string;
   subTipo: string;
   ator: string;
@@ -41,6 +42,15 @@ type EventoOut = {
   gps: string;
   hashDocumento: string | null;
   observacao: string;
+};
+
+type TransferOut = {
+  kind: "transfer";
+  from: string;
+  to: string;
+  timestamp: string;
+  blockNumber: number;
+  txHash: string;
 };
 
 async function carregarLote(loteContract: any, certContract: any, loteId: bigint) {
@@ -63,6 +73,7 @@ async function carregarLote(loteContract: any, certContract: any, loteId: bigint
   );
 
   const eventosOut: EventoOut[] = eventos.map((e: any) => ({
+    kind: "evento" as const,
     cte: CTE_NOME[Number(e.cte)],
     subTipo: e.subTipo,
     ator: e.ator,
@@ -72,6 +83,30 @@ async function carregarLote(loteContract: any, certContract: any, loteId: bigint
     hashDocumento: e.hashDocumento === ethers.ZeroHash ? null : e.hashDocumento,
     observacao: e.observacao,
   }));
+
+  // ERC-721 Transfer events do tokenId — chain-of-custody legal (mudança de posse)
+  const transferFilter = loteContract.filters.Transfer(null, null, loteId);
+  const transferLogs = await loteContract.queryFilter(transferFilter);
+  const transfers: TransferOut[] = await Promise.all(
+    transferLogs
+      .filter((log: any) => log.args.from !== ethers.ZeroAddress) // filtra mint (from=0x0)
+      .map(async (log: any) => {
+        const block = await log.getBlock();
+        return {
+          kind: "transfer" as const,
+          from: log.args.from,
+          to: log.args.to,
+          timestamp: new Date(block.timestamp * 1000).toISOString(),
+          blockNumber: block.number,
+          txHash: log.transactionHash,
+        };
+      })
+  );
+
+  // Trilha unificada e cronológica (eventos custom + transfers ERC-721)
+  const trilha: (EventoOut | TransferOut)[] = [...eventosOut, ...transfers].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
 
   // Heurística de conformidade pelo sufixo do subTipo (independe de setor)
   const sufixos = eventosOut.map((e) => e.subTipo.split(".")[1] ?? "");
@@ -98,7 +133,9 @@ async function carregarLote(loteContract: any, certContract: any, loteId: bigint
       loteOrigem: Number(info.loteOrigem),
       ativo: info.ativo,
     },
+    trilha,
     eventos: eventosOut,
+    transfers,
     certificados,
     conformidade,
   };

@@ -26,6 +26,8 @@
   // RastreabilidadeLote — modelo neutro com CTE + subTipo + commoditySlug
   var ABI_LOTE = [
     "function historicoCompleto(uint256 tokenId) view returns (tuple(address produtor,string commoditySlug,uint256 quantidadeKg,uint256 dataInicio,uint256 dataExtracao,string codigoInterno,uint256 loteOrigem,bool ativo),tuple(uint8 cte,string subTipo,address ator,uint256 timestamp,string localGPS,string localNome,bytes32 hashDocumento,string observacao)[])",
+    // ERC-721 Transfer event — chain-of-custody legal (transferência de posse do NFT)
+    "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
   ];
 
   // RegistroProdutores — para resolver dados do produtor (polígono, RENASEM, município)
@@ -315,6 +317,47 @@
       return Number(a.timestamp) - Number(b.timestamp);
     });
 
+    // ERC-721 Transfer events do tokenId — fonte canônica de mudanças de posse
+    var transfers = [];
+    try {
+      var transferFilter = lote.filters.Transfer(null, null, idBig);
+      var transferLogs = await lote.queryFilter(transferFilter);
+      transfers = await Promise.all(
+        transferLogs
+          .filter(function (log) { return log.args.from !== ethers.ZeroAddress; }) // filtra mint
+          .map(async function (log) {
+            var block = await log.getBlock();
+            return {
+              kind: "transfer",
+              from: log.args.from,
+              to: log.args.to,
+              timestamp: BigInt(block.timestamp),
+              txHash: log.transactionHash,
+            };
+          })
+      );
+    } catch (err) {
+      console.warn("[ACIEG RBB] queryFilter Transfer falhou:", err);
+    }
+
+    // Trilha cronológica unificada: eventos custom + transfers ERC-721
+    var eventosKind = eventos.map(function (e) {
+      return {
+        kind: "evento",
+        cte: e.cte,
+        subTipo: e.subTipo,
+        ator: e.ator,
+        timestamp: e.timestamp,
+        localGPS: e.localGPS,
+        localNome: e.localNome,
+        hashDocumento: e.hashDocumento,
+        observacao: e.observacao,
+      };
+    });
+    var trilha = eventosKind.concat(transfers).sort(function (a, b) {
+      return Number(a.timestamp) - Number(b.timestamp);
+    });
+
     // Carrega vocabulário inferido pelo prefixo do primeiro subTipo (default: vegetal)
     var setor = null;
     for (var i = 0; i < eventos.length; i++) {
@@ -442,9 +485,31 @@
         "</ul>";
     }
 
-    // Timeline cronológica
-    var eventosHtml = eventos
-      .map(function (e, idx) {
+    // Timeline cronológica unificada (eventos + transfers ERC-721)
+    var eventoNum = 0;
+    var trilhaHtml = trilha
+      .map(function (item) {
+        if (item.kind === "transfer") {
+          // Transferência de posse — linha distintiva, sem badge numerado
+          var fromShort = item.from.slice(0, 6) + "…" + item.from.slice(-4);
+          var toShort = item.to.slice(0, 6) + "…" + item.to.slice(-4);
+          return (
+            '<li class="acieg-rbb-transfer">' +
+            '<div class="acieg-rbb-transfer-header">' +
+            '<span class="acieg-rbb-transfer-arrow">↓</span>' +
+            "<strong>Posse transferida</strong> " +
+            '<code>' + esc(fromShort) + "</code> → <code>" + esc(toShort) + "</code>" +
+            "</div>" +
+            '<div class="acieg-rbb-transfer-meta">' +
+            fmtDate(item.timestamp) +
+            ' · <small>tx: <code>' + esc(item.txHash) + "</code></small>" +
+            "</div>" +
+            "</li>"
+          );
+        }
+        // Evento custom
+        eventoNum += 1;
+        var e = item;
         var cteIdx = Number(e.cte);
         var cteLabel = CTE_LABELS[cteIdx] || "—";
         var fase = CTE_PHASE[cteIdx] || "outro";
@@ -454,7 +519,7 @@
         return (
           '<li class="acieg-rbb-evento acieg-rbb-fase-' + fase + '">' +
           '<div class="acieg-rbb-evento-header">' +
-          '<span class="acieg-rbb-evento-num">' + (idx + 1) + "</span>" +
+          '<span class="acieg-rbb-evento-num">' + eventoNum + "</span>" +
           "<strong>" + esc(meta.label) + "</strong>" + tagSigla +
           ' <span class="acieg-rbb-cte-tag">' + esc(cteLabel) + "</span>" +
           " — " + esc(e.localNome) +
@@ -490,7 +555,7 @@
       "<h4>" + esc(i18n.origemLote || "Origem do lote") + "</h4>",
       origemHtml,
       "<h4>" + esc(i18n.cadeiaCustodia || "Cadeia de custódia") + "</h4>",
-      '<ol class="acieg-rbb-timeline">' + eventosHtml + "</ol>",
+      '<ol class="acieg-rbb-timeline">' + trilhaHtml + "</ol>",
       certsHtml,
       conformidadeHtml,
       "</div>",
