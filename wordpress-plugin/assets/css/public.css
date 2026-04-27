@@ -221,15 +221,83 @@
   z-index: 1;
 }
 
+/* 3 fases de cor para os 12 buckets CTE */
+.acieg-rbb-fase-origem .acieg-rbb-evento-num {
+  background: #1b6d3a; /* verde Goiás — origem/produção */
+}
+.acieg-rbb-fase-transicao .acieg-rbb-evento-num {
+  background: #c87f1c; /* laranja — colheita/beneficiamento/certificação */
+}
+.acieg-rbb-fase-logistica .acieg-rbb-evento-num {
+  background: #2271b1; /* azul — transporte/processamento/exportação/entrega */
+}
+
 .acieg-rbb-evento-header {
   font-size: 0.95rem;
   margin-bottom: 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
 }
 
 .acieg-rbb-evento-meta {
   font-size: 0.85rem;
   color: #505050;
   line-height: 1.5;
+}
+
+.acieg-rbb-cte-tag {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #505050;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+.acieg-rbb-sigla {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #1b6d3a;
+  background: rgba(27, 109, 58, 0.12);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+.acieg-rbb-padrao {
+  color: #6c757d;
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+.acieg-rbb-lote-pai {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: #505050;
+}
+
+.acieg-rbb-lote-pai a {
+  color: #1b6d3a;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.acieg-rbb-conformidade {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+
+.acieg-rbb-conformidade li {
+  padding: 0.35rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.92rem;
 }
 
 .acieg-rbb-certs {

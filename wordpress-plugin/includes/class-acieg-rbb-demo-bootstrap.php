@@ -45,8 +45,8 @@ add_action(
 			$conteudo .= "<p>Consulte a autenticidade de um certificado emitido pela ACIEG.</p>\n";
 			$conteudo .= "[verificar_certificado]\n\n";
 			$conteudo .= "<h2>Rastreabilidade Feito em Goiás</h2>\n";
-			$conteudo .= "<p>Rastreie a cadeia de custódia de um lote até a origem.</p>\n";
-			$conteudo .= "[rastrear_lote]\n";
+			$conteudo .= "<p>Trilha completa da origem (semente RENASEM) à entrega final no comprador europeu (DDS EUDR), com CFO/PTV, monitoramento satelital MapBiomas e árvore parent-child entre lotes.</p>\n";
+			$conteudo .= "[rastrear_lote id=\"2\"]\n";
 
 			$post_id = wp_insert_post(
 				array(

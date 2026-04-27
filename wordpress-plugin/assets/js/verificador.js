@@ -23,8 +23,14 @@
     "function detalhes(uint256 tokenId) view returns (tuple(bytes32 hashPdf,string nomeCurso,string nomeAluno,uint256 cargaHorariaHoras,uint256 dataConclusao,address emissor,bool revogado,string motivoRevogacao))",
   ];
 
+  // RastreabilidadeLote — modelo neutro com CTE + subTipo + commoditySlug
   var ABI_LOTE = [
-    "function historicoCompleto(uint256 tokenId) view returns (tuple(address produtor,uint8 commodity,uint256 quantidadeKg,uint256 dataColheita,string codigoInterno,bool ativo),tuple(uint8 tipo,address ator,uint256 timestamp,string localGPS,string localNome,bytes32 hashDocumento,string observacao)[])",
+    "function historicoCompleto(uint256 tokenId) view returns (tuple(address produtor,string commoditySlug,uint256 quantidadeKg,uint256 dataInicio,uint256 dataExtracao,string codigoInterno,uint256 loteOrigem,bool ativo),tuple(uint8 cte,string subTipo,address ator,uint256 timestamp,string localGPS,string localNome,bytes32 hashDocumento,string observacao)[])",
+  ];
+
+  // RegistroProdutores — para resolver dados do produtor (polígono, RENASEM, município)
+  var ABI_REG = [
+    "function dadosProdutor(address produtor) view returns (tuple(string cnpjOuCpf,string nome,string car,string municipio,int256 latitudeE6,int256 longitudeE6,bytes32 poligonoCARHash,string poligonoURI,string renasem,uint8 setor,bool ativo,uint256 cadastradoEm))",
   ];
 
   var ABI_CERT_CONF = [
@@ -32,40 +38,32 @@
     "function detalhes(uint256 certId) view returns (tuple(uint256 loteTokenId,uint8 tipo,address emissor,string nomeEmissor,uint256 emitidoEm,uint256 validoAte,bytes32 hashDocumento,string observacao,bool revogado))",
   ];
 
-  var COMMODITY = [
-    "Não definida",
-    "Soja",
-    "Milho",
-    "Carne Bovina",
-    "Café",
-    "Leite",
-    "Minério de Ferro",
-    "Outro",
-  ];
-  var TIPO_EVENTO = [
-    "Colheita",
-    "Transporte",
+  // CTE buckets universais (RastreabilidadeLote.sol)
+  var CTE_LABELS = [
+    "Origem",
+    "Produção",
+    "Tratamento",
+    "Monitoramento",
+    "Extração",
+    "Beneficiamento",
     "Armazenagem",
+    "Certificação",
+    "Transporte",
     "Processamento",
     "Exportação",
     "Entrega Final",
   ];
-  var TIPO_CERTIFICADO = [
-    "—",
-    "EUDR",
-    "ESG",
-    "Orgânico",
-    "GMO-Free",
-    "Fair Trade",
-    "Outro",
-  ];
+  // 3-fase color groups: 0..3 origem/produção (verde) | 4..7 transição (laranja) | 8..11 logística (azul)
+  var CTE_PHASE = ["origem", "origem", "origem", "origem", "transicao", "transicao", "transicao", "transicao", "logistica", "logistica", "logistica", "logistica"];
+
+  var TIPO_CERTIFICADO = ["—", "EUDR", "ESG", "Orgânico", "GMO-Free", "Fair Trade", "Outro"];
+
+  // Setor enum (RegistroProdutores.sol)
+  var SETOR_LABEL = ["—", "Agropecuária", "Mineração", "Indústria", "Sementeira"];
 
   var provider = null;
   function getProvider() {
     if (!provider) {
-      // Auto-detect da rede: ethers v6 dispara eth_chainId na primeira call e
-      // monta o objeto Network internamente. Evita problemas de coerção com
-      // chainIds grandes (>2^31) recebidos como string do PHP.
       provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
     }
     return provider;
@@ -81,6 +79,15 @@
     if (!ts || ts === 0n) return "—";
     try {
       return new Date(Number(ts) * 1000).toLocaleString("pt-BR");
+    } catch (e) {
+      return "—";
+    }
+  }
+
+  function fmtDateOnly(ts) {
+    if (!ts || ts === 0n) return "—";
+    try {
+      return new Date(Number(ts) * 1000).toLocaleDateString("pt-BR");
     } catch (e) {
       return "—";
     }
@@ -106,6 +113,71 @@
 
   function limparCnpj(s) {
     return String(s || "").replace(/[^0-9]/g, "");
+  }
+
+  // ==================== VOCABULÁRIO (carregamento setorial dinâmico) ====================
+  var vocabCache = {}; // setor -> {events, commodities, ...}
+  var vocabPromises = {};
+
+  async function carregarVocabulario(setor) {
+    if (vocabCache[setor]) return vocabCache[setor];
+    if (vocabPromises[setor]) return vocabPromises[setor];
+    var base = cfg.vocabularioBaseUrl;
+    if (!base) {
+      vocabCache[setor] = { events: {}, commodities: {} };
+      return vocabCache[setor];
+    }
+    var url = base.replace(/\/$/, "") + "/" + setor + ".json";
+    vocabPromises[setor] = fetch(url, { credentials: "omit" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("vocab " + setor + " HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (json) {
+        vocabCache[setor] = json;
+        return json;
+      })
+      .catch(function (err) {
+        console.warn("[ACIEG RBB] vocabulário '" + setor + "' indisponível:", err);
+        vocabCache[setor] = { events: {}, commodities: {} };
+        return vocabCache[setor];
+      });
+    return vocabPromises[setor];
+  }
+
+  // Mapeia prefixo do subTipo para o nome do arquivo do setor.
+  var SETOR_POR_PREFIXO = {
+    VEG: "vegetal",
+    BOV: "bovino",
+    SUI: "suino",
+    OVI: "ovino",
+    AVE: "avicultura",
+    AQU: "aquicultura",
+    API: "apicultura",
+    MIN: "mineracao",
+    MAD: "madeira",
+    IND: "industria",
+    ENE: "energia",
+  };
+
+  function inferirSetorDoSubTipo(subTipo) {
+    if (!subTipo) return null;
+    var pre = subTipo.split(".")[0];
+    return SETOR_POR_PREFIXO[pre] || null;
+  }
+
+  // Resolve label/sigla/padrão de um subTipo via vocabulário (ou retorna fallback bruto).
+  function resolverEvento(vocab, subTipo) {
+    var ev = vocab && vocab.events && vocab.events[subTipo];
+    if (ev) return ev;
+    return { label: subTipo || "—", sigla: null, padrao: null, urn: null };
+  }
+
+  // Resolve label/NCM/scientific de um commoditySlug via vocabulário.
+  function resolverCommodity(vocab, slug) {
+    var c = vocab && vocab.commodities && vocab.commodities[slug];
+    if (c) return c;
+    return { label: slug || "—", ncm: null, scientific: null };
   }
 
   // ==================== SELO ====================
@@ -223,7 +295,9 @@
   async function rastrearLote(el, loteId) {
     var addrLote = cfg.contracts.rastreabilidade;
     var addrConf = cfg.contracts.certificadosConf;
+    var addrReg = cfg.contracts.registroProdutor;
     if (!addrLote) return setError(el, "Endereço do contrato Rastreabilidade não configurado.");
+
     var prov = getProvider();
     var lote = new ethers.Contract(addrLote, ABI_LOTE, prov);
 
@@ -236,84 +310,208 @@
 
     var resp = await lote.historicoCompleto(idBig);
     var info = resp[0];
-    var eventos = resp[1];
+    var eventos = resp[1].slice().sort(function (a, b) {
+      // sort defensivo (contrato já ordena, mas garantimos)
+      return Number(a.timestamp) - Number(b.timestamp);
+    });
 
-    // Certificados (se contract configurado)
-    var certsHtml = "";
+    // Carrega vocabulário inferido pelo prefixo do primeiro subTipo (default: vegetal)
+    var setor = null;
+    for (var i = 0; i < eventos.length; i++) {
+      var s = inferirSetorDoSubTipo(eventos[i].subTipo);
+      if (s) { setor = s; break; }
+    }
+    if (!setor) {
+      // sem eventos ainda: tenta inferir pelo commoditySlug (heurística simples)
+      var slug = info.commoditySlug || "";
+      if (/^(SOJA|MILHO|CAFE|CACAU|CANA|ALGODAO|MADEIRA|BORRACHA|OLEO|SEMENTE_)/i.test(slug)) setor = "vegetal";
+      else if (/^CARNE_BOVINA|^LEITE/i.test(slug)) setor = "bovino";
+      else if (/^CARNE_SUINA/i.test(slug)) setor = "suino";
+      else if (/^CARNE_OVINA/i.test(slug)) setor = "ovino";
+      else if (/^FRANGO|^OVO/i.test(slug)) setor = "avicultura";
+      else if (/^MEL/i.test(slug)) setor = "apicultura";
+      else if (/^MINERIO|^OURO/i.test(slug)) setor = "mineracao";
+      else setor = "vegetal";
+    }
+    var vocab = await carregarVocabulario(setor);
+    var commodity = resolverCommodity(vocab, info.commoditySlug);
+
+    // Bloco "Origem do lote" — produtor, polígono, lote-pai
+    var origemHtml = "";
+    if (addrReg) {
+      try {
+        var reg = new ethers.Contract(addrReg, ABI_REG, prov);
+        var prod = await reg.dadosProdutor(info.produtor);
+        var poligonoLink = prod.poligonoURI
+          ? '<a href="' + esc(prod.poligonoURI) + '" target="_blank" rel="noopener">' + esc(i18n.verPoligono || "Ver polígono CAR") + "</a>"
+          : "—";
+        origemHtml =
+          "<dl>" +
+          "<dt>Produtor</dt><dd>" + esc(prod.nome) + " (" + esc(SETOR_LABEL[Number(prod.setor)] || "—") + ")</dd>" +
+          "<dt>Município</dt><dd>" + esc(prod.municipio) + "</dd>" +
+          "<dt>CAR</dt><dd>" + esc(prod.car || "—") + "</dd>" +
+          "<dt>Polígono</dt><dd>" + poligonoLink + "</dd>" +
+          (prod.renasem ? "<dt>RENASEM</dt><dd>" + esc(prod.renasem) + "</dd>" : "") +
+          "<dt>Endereço</dt><dd><code>" + esc(info.produtor) + "</code></dd>" +
+          "</dl>";
+      } catch (e) {
+        console.warn("[ACIEG RBB] dadosProdutor indisponível:", e);
+        origemHtml = '<dl><dt>Produtor</dt><dd><code>' + esc(info.produtor) + "</code></dd></dl>";
+      }
+    } else {
+      origemHtml = '<dl><dt>Produtor</dt><dd><code>' + esc(info.produtor) + "</code></dd></dl>";
+    }
+
+    var loteOrigemHtml = "";
+    if (info.loteOrigem && info.loteOrigem !== 0n) {
+      var pai = info.loteOrigem.toString();
+      loteOrigemHtml =
+        '<p class="acieg-rbb-lote-pai">' +
+        esc(i18n.loteOrigem || "Lote-pai") +
+        ': <a href="#" class="acieg-rbb-link-pai" data-lote-pai="' + esc(pai) + '">#' + esc(pai) + "</a>" +
+        "</p>";
+    }
+
+    // Certificados de conformidade
+    var certs = [];
     if (addrConf) {
       var conf = new ethers.Contract(addrConf, ABI_CERT_CONF, prov);
       var ids = await conf.certificadosDoLote(idBig);
       if (ids.length > 0) {
-        var detalhes = await Promise.all(
+        certs = await Promise.all(
           ids.map(function (id) {
             return conf.detalhes(id);
           })
         );
-        certsHtml =
-          "<h4>" +
-          esc(i18n.certificados || "Certificados") +
-          "</h4><ul class=\"acieg-rbb-certs\">" +
-          detalhes
-            .map(function (c) {
-              var valido = !c.revogado && BigInt(Math.floor(Date.now() / 1000)) <= c.validoAte;
-              return (
-                "<li>" +
-                statusBadge(valido ? i18n.valid || "VÁLIDO" : "INVÁLIDO") +
-                " <strong>" +
-                esc(TIPO_CERTIFICADO[Number(c.tipo)] || "—") +
-                "</strong> — " +
-                esc(c.nomeEmissor) +
-                " (válido até " +
-                fmtDate(c.validoAte) +
-                ")</li>"
-              );
-            })
-            .join("") +
-          "</ul>";
       }
     }
+    var certsHtml = "";
+    if (certs.length > 0) {
+      certsHtml =
+        "<h4>" +
+        esc(i18n.certificados || "Certificados") +
+        '</h4><ul class="acieg-rbb-certs">' +
+        certs
+          .map(function (c) {
+            var valido = !c.revogado && BigInt(Math.floor(Date.now() / 1000)) <= c.validoAte;
+            return (
+              "<li>" +
+              statusBadge(valido ? i18n.valid || "VÁLIDO" : "INVÁLIDO") +
+              " <strong>" +
+              esc(TIPO_CERTIFICADO[Number(c.tipo)] || "—") +
+              "</strong> — " +
+              esc(c.nomeEmissor) +
+              " (válido até " +
+              fmtDateOnly(c.validoAte) +
+              ")</li>"
+            );
+          })
+          .join("") +
+        "</ul>";
+    }
 
+    // Conformidade — calculada do subTipo / certificados / loteOrigem
+    var sufixos = eventos.map(function (e) {
+      var parts = (e.subTipo || "").split(".");
+      return parts.length > 1 ? parts[1] : "";
+    });
+    var temEUDR = certs.some(function (c) {
+      var valido = !c.revogado && BigInt(Math.floor(Date.now() / 1000)) <= c.validoAte;
+      return Number(c.tipo) === 1 && valido;
+    });
+    var temMonitoramento = eventos.some(function (e) { return Number(e.cte) === 3; });
+    var conformidade = [
+      { label: "EUDR (UE 2023/1115)", ok: temEUDR && temMonitoramento },
+      { label: "RENASEM (semente)", ok: (info.commoditySlug || "").indexOf("SEMENTE_") === 0 || (info.loteOrigem && info.loteOrigem !== 0n) },
+      { label: "CFO/CFOC (fitossanitário)", ok: sufixos.indexOf("CFO") >= 0 || sufixos.indexOf("CFOC") >= 0 },
+      { label: "PTV (trânsito vegetal)", ok: sufixos.indexOf("PTV") >= 0 },
+      { label: "GTA (trânsito animal)", ok: sufixos.indexOf("GTA") >= 0 },
+      { label: "SIF (inspeção federal)", ok: sufixos.indexOf("SIF") >= 0 },
+      { label: "DOF (madeira/florestal)", ok: sufixos.some(function (s) { return s.indexOf("DOF") === 0; }) },
+      { label: "Monitoramento satelital", ok: temMonitoramento },
+    ];
+    var aplicaveis = conformidade.filter(function (c) { return c.ok; });
+    var conformidadeHtml = "";
+    if (aplicaveis.length > 0) {
+      conformidadeHtml =
+        "<h4>" + esc(i18n.conformidade || "Conformidade regulatória") + "</h4>" +
+        '<ul class="acieg-rbb-conformidade">' +
+        aplicaveis.map(function (c) {
+          return '<li>' + statusBadge(i18n.valid || "VÁLIDO") + " " + esc(c.label) + "</li>";
+        }).join("") +
+        "</ul>";
+    }
+
+    // Timeline cronológica
     var eventosHtml = eventos
       .map(function (e, idx) {
+        var cteIdx = Number(e.cte);
+        var cteLabel = CTE_LABELS[cteIdx] || "—";
+        var fase = CTE_PHASE[cteIdx] || "outro";
+        var meta = resolverEvento(vocab, e.subTipo);
+        var tagSigla = meta.sigla ? ' <span class="acieg-rbb-sigla">' + esc(meta.sigla) + "</span>" : "";
+        var tagPadrao = meta.padrao ? '<small class="acieg-rbb-padrao">' + esc(meta.padrao) + "</small>" : "";
         return (
-          '<li class="acieg-rbb-evento">' +
-          '<div class="acieg-rbb-evento-header"><span class="acieg-rbb-evento-num">' +
-          (idx + 1) +
-          "</span><strong>" +
-          esc(TIPO_EVENTO[Number(e.tipo)] || "—") +
-          "</strong> — " +
-          esc(e.localNome) +
+          '<li class="acieg-rbb-evento acieg-rbb-fase-' + fase + '">' +
+          '<div class="acieg-rbb-evento-header">' +
+          '<span class="acieg-rbb-evento-num">' + (idx + 1) + "</span>" +
+          "<strong>" + esc(meta.label) + "</strong>" + tagSigla +
+          ' <span class="acieg-rbb-cte-tag">' + esc(cteLabel) + "</span>" +
+          " — " + esc(e.localNome) +
           "</div>" +
           '<div class="acieg-rbb-evento-meta">' +
           fmtDate(e.timestamp) +
-          " — GPS: " +
-          esc(e.localGPS || "—") +
-          (e.observacao ? " — " + esc(e.observacao) : "") +
+          " · GPS: " + esc(e.localGPS || "—") +
+          (e.observacao ? " · " + esc(e.observacao) : "") +
           (e.hashDocumento && e.hashDocumento !== ethers.ZeroHash
             ? '<br/><small>doc: <code>' + esc(e.hashDocumento) + "</code></small>"
             : "") +
+          (tagPadrao ? "<br/>" + tagPadrao : "") +
           "</div>" +
           "</li>"
         );
       })
       .join("");
 
+    var ncmStr = commodity.ncm ? " · NCM " + esc(commodity.ncm) : "";
+    var sciStr = commodity.scientific ? " · <em>" + esc(commodity.scientific) + "</em>" : "";
+
     var html = [
       '<div class="acieg-rbb-card">',
       "<h3>" + esc(i18n.rastreioTitle || "Rastreabilidade Feito em Goiás") + " — Lote #" + idBig.toString() + "</h3>",
       "<dl>",
       "<dt>" + esc(i18n.codigoLote) + "</dt><dd>" + esc(info.codigoInterno) + "</dd>",
-      "<dt>Commodity</dt><dd>" + esc(COMMODITY[Number(info.commodity)] || "—") + "</dd>",
+      "<dt>Commodity</dt><dd>" + esc(commodity.label) + ncmStr + sciStr + "</dd>",
       "<dt>" + esc(i18n.quantidade) + "</dt><dd>" + info.quantidadeKg.toString() + " kg</dd>",
-      "<dt>Data colheita</dt><dd>" + fmtDate(info.dataColheita) + "</dd>",
-      "<dt>" + esc(i18n.produtor) + "</dt><dd><code>" + esc(info.produtor) + "</code></dd>",
+      "<dt>Início do ciclo</dt><dd>" + fmtDateOnly(info.dataInicio) + "</dd>",
+      "<dt>Extração</dt><dd>" + fmtDateOnly(info.dataExtracao) + "</dd>",
       "</dl>",
-      "<h4>" + esc(i18n.cadeiaCustodia) + "</h4>",
+      loteOrigemHtml,
+      "<h4>" + esc(i18n.origemLote || "Origem do lote") + "</h4>",
+      origemHtml,
+      "<h4>" + esc(i18n.cadeiaCustodia || "Cadeia de custódia") + "</h4>",
       '<ol class="acieg-rbb-timeline">' + eventosHtml + "</ol>",
       certsHtml,
+      conformidadeHtml,
       "</div>",
     ].join("");
     setResult(el, html);
+
+    // Habilita link "Lote-pai" para nova consulta
+    var linkPai = el.querySelector(".acieg-rbb-link-pai");
+    if (linkPai) {
+      linkPai.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        var loteId = linkPai.getAttribute("data-lote-pai");
+        var input = el.querySelector(".acieg-rbb-input");
+        if (input) input.value = loteId;
+        setLoading(el);
+        rastrearLote(el, loteId).catch(function (err) {
+          console.error(err);
+          setError(el, i18n.consultError || "Erro ao consultar.");
+        });
+      });
+    }
   }
 
   function linkExplorer(addr) {
@@ -335,7 +533,6 @@
     var tipo = el.getAttribute("data-widget");
     var btn = form.querySelector("button[type=submit]");
 
-    // Inicialização automática se valor vier do shortcode.
     if (tipo === "selo") {
       var presetCnpj = el.getAttribute("data-cnpj");
       var presetEnd = el.getAttribute("data-endereco");
@@ -368,7 +565,6 @@
       }
     }
 
-    // Submit handlers.
     btn.addEventListener("click", async function () {
       try {
         setLoading(el);
@@ -400,7 +596,6 @@
       }
     });
 
-    // Abas do certificado
     if (tipo === "certificado") {
       var tabs = el.querySelectorAll(".acieg-rbb-tab");
       tabs.forEach(function (tab) {
