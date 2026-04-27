@@ -154,6 +154,32 @@ describe("RastreabilidadeLote", () => {
     ).to.be.revertedWithCustomError(lote, "NaoAutorizado");
   });
 
+  it("após safeTransferFrom, novo dono pode registrar evento (chain-of-custody via NFT)", async () => {
+    const { lote, produtor, outsider } = await deploy();
+    // outsider aqui faz papel de exportador (trading company que compra do produtor)
+    await lote.connect(produtor).criarLote("SOJA", 50000, 0, 0, "RIV-2026-S-0042", 0);
+
+    // Antes do transfer: outsider não consegue registrar
+    await expect(
+      lote.connect(outsider).registrarEvento(1, CTE_TRANSPORTE, "VEG.PTV", 0, "", "X", ethers.ZeroHash, "")
+    ).to.be.revertedWithCustomError(lote, "NaoAutorizado");
+
+    // Produtor transfere o NFT para o exportador (venda)
+    await lote
+      .connect(produtor)
+      ["safeTransferFrom(address,address,uint256)"](produtor.address, outsider.address, 1);
+    expect(await lote.ownerOf(1)).to.equal(outsider.address);
+
+    // Após transfer: novo dono registra normalmente; produtor antigo não pode mais
+    await lote
+      .connect(outsider)
+      .registrarEvento(1, CTE_TRANSPORTE, "VEG.PTV", 0, "", "Porto de Santos", ethers.ZeroHash, "");
+    expect(await lote.totalEventos(1)).to.equal(1n);
+    await expect(
+      lote.connect(produtor).registrarEvento(1, CTE_EXPORTACAO, "VEG.DUE", 0, "", "X", ethers.ZeroHash, "")
+    ).to.be.revertedWithCustomError(lote, "NaoAutorizado");
+  });
+
   it("historicoCompleto retorna eventos ordenados por timestamp ascendente (mesmo retroativos)", async () => {
     const { lote, produtor } = await deploy();
     const tPlantio = 1_700_000_000;

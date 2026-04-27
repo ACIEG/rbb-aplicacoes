@@ -16,9 +16,15 @@ import { join } from "path";
  *   #0 admin/ACIEG      — cadastra produtores e habilita certificadora
  *   #1 produtor          — Fazenda Boa Vista (Rio Verde/GO)
  *   #2 certificadora     — IBD Certificações (EUDR)
- *   #3 transportador     — frota multimodal (rodovia + ferrovia)
- *   #4 exportador        — trading que vende para Rotterdam
+ *   #3 transportador     — frota multimodal (registrado como KDE no evento, não dono)
+ *   #4 exportador        — trading que compra do produtor e exporta para Rotterdam
  *   #5 sementeira        — Brasmax Sementes (Cristalina/GO)
+ *
+ * Modelo de custódia: o NFT do lote = quem detém a posse legal da carga.
+ * O produtor cria, registra todos os eventos pré-venda (origem→CFO), e então
+ * `safeTransferFrom` o NFT ao exportador (compra). O exportador registra
+ * TRANSPORTE/EXPORTACAO/ENTREGA_FINAL como dono. O transportador entra como
+ * KDE textual (placa, CTRC) — empresa de serviço, não custodiante.
  */
 
 const PAUSE_MS = Number(process.env.DEMO_PAUSE_MS ?? 0);
@@ -252,11 +258,23 @@ async function main() {
     hashKey("CFO-PDF-2026-RIV-S-0042"),
     "CFO emitido conforme IN MAPA 28/2016; validade 90 dias"
   )).wait();
-  await (await lote.connect(transportador).registrarEvento(
+
+  // ─────────────────────────────────────────────────────────────────
+  // Venda do produtor ao exportador (trading company): a posse do lote
+  // muda via safeTransferFrom — o NFT é a chain-of-custody. A partir daqui,
+  // o exportador é quem registra os eventos logísticos como dono.
+  console.log("\n  → Venda: produtor transfere NFT do Lote #2 ao exportador");
+  await (await lote.connect(produtor)["safeTransferFrom(address,address,uint256)"](
+    produtor.address,
+    exportador.address,
+    2
+  )).wait();
+
+  await (await lote.connect(exportador).registrarEvento(
     2, CTE_TRANSPORTE, "VEG.PTV", dataPTV,
     "-23.98,-46.32", "Porto de Santos/SP (Tecon)",
     hashKey("PTV-GO-2026-031820"),
-    "PTV nº GO-2026-031820; ferrovia Rumo + caminhão até terminal"
+    `PTV nº GO-2026-031820; ferrovia Rumo + caminhão; transportador ${transportador.address.slice(0, 8)}…`
   )).wait();
   await (await lote.connect(exportador).registrarEvento(
     2, CTE_EXPORTACAO, "VEG.DUE", dataDUE,
