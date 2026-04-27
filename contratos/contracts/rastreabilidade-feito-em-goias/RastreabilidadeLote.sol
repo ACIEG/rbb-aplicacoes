@@ -87,6 +87,7 @@ contract RastreabilidadeLote is ERC721, AccessControl {
     error LoteInativo(uint256 tokenId);
     error LoteOrigemInexistente(uint256 loteOrigem);
     error NaoAutorizado(uint256 tokenId);
+    error TimestampFuturo(uint256 timestamp);
 
     constructor(address admin, address registroAddress)
         ERC721(unicode"Lote Rastreavel Feito em Goias", "LOTE-FG")
@@ -158,6 +159,7 @@ contract RastreabilidadeLote is ERC721, AccessControl {
         if (owner != msg.sender) revert NaoAutorizado(tokenId);
         if (!_lotes[tokenId].ativo) revert LoteInativo(tokenId);
 
+        if (timestamp != 0 && timestamp > block.timestamp) revert TimestampFuturo(timestamp);
         uint256 ts = timestamp == 0 ? block.timestamp : timestamp;
 
         _historico[tokenId].push(

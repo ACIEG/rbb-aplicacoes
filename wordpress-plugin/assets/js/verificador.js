@@ -321,7 +321,7 @@
     var transfers = [];
     try {
       var transferFilter = lote.filters.Transfer(null, null, idBig);
-      var transferLogs = await lote.queryFilter(transferFilter);
+      var transferLogs = await lote.queryFilter(transferFilter, 1);
       transfers = await Promise.all(
         transferLogs
           .filter(function (log) { return log.args.from !== ethers.ZeroAddress; }) // filtra mint
@@ -465,7 +465,7 @@
     var temMonitoramento = eventos.some(function (e) { return Number(e.cte) === 3; });
     var conformidade = [
       { label: "EUDR (UE 2023/1115)", ok: temEUDR && temMonitoramento },
-      { label: "RENASEM (semente)", ok: (info.commoditySlug || "").indexOf("SEMENTE_") === 0 || (info.loteOrigem && info.loteOrigem !== 0n) },
+      { label: "RENASEM (semente)", ok: (info.commoditySlug || "").indexOf("SEMENTE_") === 0 },
       { label: "CFO/CFOC (fitossanitário)", ok: sufixos.indexOf("CFO") >= 0 || sufixos.indexOf("CFOC") >= 0 },
       { label: "PTV (trânsito vegetal)", ok: sufixos.indexOf("PTV") >= 0 },
       { label: "GTA (trânsito animal)", ok: sufixos.indexOf("GTA") >= 0 },

@@ -86,7 +86,7 @@ async function carregarLote(loteContract: any, certContract: any, loteId: bigint
 
   // ERC-721 Transfer events do tokenId — chain-of-custody legal (mudança de posse)
   const transferFilter = loteContract.filters.Transfer(null, null, loteId);
-  const transferLogs = await loteContract.queryFilter(transferFilter);
+  const transferLogs = await loteContract.queryFilter(transferFilter, 1);
   const transfers: TransferOut[] = await Promise.all(
     transferLogs
       .filter((log: any) => log.args.from !== ethers.ZeroAddress) // filtra mint (from=0x0)
@@ -112,7 +112,7 @@ async function carregarLote(loteContract: any, certContract: any, loteId: bigint
   const sufixos = eventosOut.map((e) => e.subTipo.split(".")[1] ?? "");
   const conformidade = {
     EUDR: certificados.some((c) => c.tipo === "EUDR" && !c.revogado && new Date(c.validoAte) > new Date()),
-    RENASEM: info.commoditySlug.startsWith("SEMENTE_") || info.loteOrigem !== 0n,
+    RENASEM: info.commoditySlug.startsWith("SEMENTE_"),
     CFO: sufixos.includes("CFO") || sufixos.includes("CFOC"),
     PTV: sufixos.includes("PTV"),
     GTA: sufixos.includes("GTA"),
