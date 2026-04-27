@@ -11,7 +11,9 @@ Goiás é a 4ª maior economia agropecuária do Brasil, e os compradores interna
 - **CBAM (Carbon Border Adjustment Mechanism)**: histórico de emissões na cadeia.
 - **ESG / sustentabilidade**: fundos e grandes varejistas exigem dados auditáveis.
 
-Soluções proprietárias custam US$0,05–0,50 por transação (Provenance, Everledger). Com a RBB pública-permissionada, o custo por transação é **zero** e os dados são auditáveis por qualquer órgão regulador ou comprador, sem permissão especial.
+Plataformas proprietárias (Provenance, Everledger, IBM Food Trust, TraceX, etc.) cobram do produtor **três camadas somadas**: (1) assinatura SaaS recorrente (US$1k–12k/mês por tier), (2) taxa por transação (US$0,05–0,50) e (3) onboarding/integração customizados. Com a RBB pública-permissionada, **a camada (2) é zero** — a infraestrutura é compartilhada com BNDES, TCU, Dataprev, Serpro, CPQD, RNP, PUC-RJ e PRODEMGE; ninguém precisa pagar gas pela transação on-chain.
+
+Isso **não significa serviço gratuito**. A ACIEG (e federações setoriais que receberem `CADASTRADOR_ROLE`) cobram pelo **serviço de valor agregado** que cerca o registro on-chain: cadastro e validação do produtor, auditoria do polígono CAR, hospedagem do GeoJSON, emissão e renovação do Selo Digital, integração com ERPs/sistemas de gestão, suporte técnico, treinamento e capacitação. O preço da entrega passa a ser definido pela **qualidade do serviço da ACIEG**, não pela margem do fornecedor de infraestrutura nem pelo custo unitário de gas — diferentemente das proprietárias, em que a margem da plataforma fica dentro do preço por transação. Os dados, esses sim, são auditáveis por qualquer regulador ou comprador via RPC público da RBB sem permissão especial.
 
 ## Padrões adotados
 
