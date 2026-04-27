@@ -146,6 +146,14 @@ describe("RastreabilidadeLote", () => {
     expect(await lote.totalEventos(1)).to.equal(1n);
   });
 
+  it("não-dono não pode registrar evento", async () => {
+    const { lote, produtor, outsider } = await deploy();
+    await lote.connect(produtor).criarLote("SOJA", 50000, 0, 0, "RIV-2026-S-0042", 0);
+    await expect(
+      lote.connect(outsider).registrarEvento(1, CTE_TRANSPORTE, "VEG.PTV", 0, "", "X", ethers.ZeroHash, "")
+    ).to.be.revertedWithCustomError(lote, "NaoAutorizado");
+  });
+
   it("historicoCompleto retorna eventos ordenados por timestamp ascendente (mesmo retroativos)", async () => {
     const { lote, produtor } = await deploy();
     const tPlantio = 1_700_000_000;

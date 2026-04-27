@@ -76,7 +76,7 @@ async function carregarLote(loteContract: any, certContract: any, loteId: bigint
   // Heurística de conformidade pelo sufixo do subTipo (independe de setor)
   const sufixos = eventosOut.map((e) => e.subTipo.split(".")[1] ?? "");
   const conformidade = {
-    EUDR: certificados.some((c) => c.tipo === "EUDR" && !c.revogado),
+    EUDR: certificados.some((c) => c.tipo === "EUDR" && !c.revogado && new Date(c.validoAte) > new Date()),
     RENASEM: info.commoditySlug.startsWith("SEMENTE_") || info.loteOrigem !== 0n,
     CFO: sufixos.includes("CFO") || sufixos.includes("CFOC"),
     PTV: sufixos.includes("PTV"),
