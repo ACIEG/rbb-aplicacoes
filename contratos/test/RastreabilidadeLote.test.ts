@@ -146,6 +146,17 @@ describe("RastreabilidadeLote", () => {
     expect(await lote.totalEventos(1)).to.equal(1n);
   });
 
+  it("rejeita evento com timestamp futuro (proteção contra forge de cronologia)", async () => {
+    const { lote, produtor } = await deploy();
+    await lote.connect(produtor).criarLote("SOJA", 50000, 0, 0, "RIV-2026-S-0042", 0);
+    const futuro = Math.floor(Date.now() / 1000) + 365 * 86400; // 1 ano à frente
+    await expect(
+      lote
+        .connect(produtor)
+        .registrarEvento(1, CTE_TRANSPORTE, "VEG.PTV", futuro, "", "X", ethers.ZeroHash, "")
+    ).to.be.revertedWithCustomError(lote, "TimestampFuturo");
+  });
+
   it("não-dono não pode registrar evento", async () => {
     const { lote, produtor, outsider } = await deploy();
     await lote.connect(produtor).criarLote("SOJA", 50000, 0, 0, "RIV-2026-S-0042", 0);

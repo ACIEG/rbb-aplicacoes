@@ -31,6 +31,14 @@ const PAUSE_MS = Number(process.env.DEMO_PAUSE_MS ?? 0);
 const pausa = () =>
   PAUSE_MS > 0 ? new Promise((r) => setTimeout(r, PAUSE_MS)) : Promise.resolve();
 
+// Anchor de tempo: tudo é deltas em relação ao "agora", para que o demo sempre
+// rode sem cair na guard TimestampFuturo do contrato (eventos não podem ter
+// timestamp > block.timestamp). Story preservada: ~590 dias do plantio da
+// semente até a entrega final em Rotterdam, todos no passado.
+const NOW = Math.floor(Date.now() / 1000);
+const DAY = 86400;
+const HOUR = 3600;
+
 // Setor enum
 const SETOR_AGRO = 1;
 const SETOR_SEMENTEIRA = 4;
@@ -111,10 +119,10 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────
   await pausa();
   console.log("\n=== 3. Sementeira cria Lote #1 (SEMENTE_SOJA) e registra ciclo ===");
-  // Plantio set/2024, monitoramento nov/2024, colheita jan/2025
-  const dataPlantioSemente = Math.floor(new Date("2024-09-15T00:00:00Z").getTime() / 1000);
-  const dataMonitorSemente = Math.floor(new Date("2024-11-20T00:00:00Z").getTime() / 1000);
-  const dataColheitaSemente = Math.floor(new Date("2025-01-25T00:00:00Z").getTime() / 1000);
+  // Ciclo da multiplicação de semente: ~590 dias atrás (plantio) → 460 dias atrás (colheita)
+  const dataPlantioSemente = NOW - 590 * DAY;
+  const dataMonitorSemente = NOW - 525 * DAY;
+  const dataColheitaSemente = NOW - 460 * DAY;
 
   await (await lote.connect(sementeira).criarLote(
     "SEMENTE_SOJA",
@@ -175,12 +183,13 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────
   await pausa();
   console.log("\n=== 6. Produtor cria Lote #2 (SOJA) com loteOrigem=1 e registra ciclo ===");
-  const dataAquisicao = Math.floor(new Date("2025-09-30T00:00:00Z").getTime() / 1000);
-  const dataPlantioSoja = Math.floor(new Date("2025-10-15T00:00:00Z").getTime() / 1000);
-  const dataInsumo1 = Math.floor(new Date("2025-11-08T00:00:00Z").getTime() / 1000);
-  const dataMonitorSoja = Math.floor(new Date("2026-01-20T00:00:00Z").getTime() / 1000);
-  const dataInsumo2 = Math.floor(new Date("2026-03-12T00:00:00Z").getTime() / 1000);
-  const dataColheitaSoja = Math.floor(new Date("2026-04-22T00:00:00Z").getTime() / 1000);
+  // Ciclo da soja: aquisição da semente → plantio → manejo → colheita (~210 dias atrás → 8 dias atrás)
+  const dataAquisicao = NOW - 210 * DAY;
+  const dataPlantioSoja = NOW - 195 * DAY;
+  const dataInsumo1 = NOW - 170 * DAY;
+  const dataMonitorSoja = NOW - 95 * DAY;
+  const dataInsumo2 = NOW - 50 * DAY;
+  const dataColheitaSoja = NOW - 8 * DAY;
 
   await (await lote.connect(produtor).criarLote(
     "SOJA",
@@ -233,12 +242,13 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────
   await pausa();
   console.log("\n=== 7. Cadeia pós-colheita ===");
-  const dataBenef = Math.floor(new Date("2026-04-25T00:00:00Z").getTime() / 1000);
-  const dataArm = Math.floor(new Date("2026-04-26T00:00:00Z").getTime() / 1000);
-  const dataCFO = Math.floor(new Date("2026-04-29T00:00:00Z").getTime() / 1000);
-  const dataPTV = Math.floor(new Date("2026-04-30T00:00:00Z").getTime() / 1000);
-  const dataDUE = Math.floor(new Date("2026-05-04T00:00:00Z").getTime() / 1000);
-  const dataDDS = Math.floor(new Date("2026-06-01T00:00:00Z").getTime() / 1000);
+  // Pós-colheita comprime ~5 dias entre beneficiamento e entrega final em Rotterdam
+  const dataBenef = NOW - 5 * DAY;
+  const dataArm = NOW - 4 * DAY;
+  const dataCFO = NOW - 3 * DAY;
+  const dataPTV = NOW - 2 * DAY;
+  const dataDUE = NOW - 1 * DAY;
+  const dataDDS = NOW - 1 * HOUR;
 
   await (await lote.connect(produtor).registrarEvento(
     2, CTE_BENEFICIAMENTO, "VEG.LIMPEZA_SECAGEM", dataBenef,
