@@ -48,7 +48,7 @@ class Acieg_Rbb_Rastreabilidade_Shortcode {
 		>
 			<form class="acieg-rbb-form" onsubmit="return false;">
 				<label for="<?php echo esc_attr( $id ); ?>-input">
-					<?php esc_html_e( 'ID do lote (NFT) ou código interno (ex: RIV-2026-S-0042):', 'acieg-rbb-verificador' ); ?>
+					<?php esc_html_e( 'ID do lote (NFT) — ex: 2 — para ver a trilha completa da origem à entrega final:', 'acieg-rbb-verificador' ); ?>
 				</label>
 				<input
 					type="text"

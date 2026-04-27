@@ -68,7 +68,7 @@ Consulte o README de cada aplicação para detalhes específicos.
 
 ## Contexto da ACIEG na RBB
 
-A ACIEG é entidade privada sem fins lucrativos de âmbito estadual (Goiás), fundada em 1952, reunindo representativamente o setor produtivo goiano — comércio, indústria e serviços. A adesão à RBB visa oferecer aos associados da ACIEG aplicações digitais baseadas em blockchain com **integração imediata com o ecossistema institucional brasileiro** (BNDES, TCU, Dataprev, Serpro, CPQD, RNP, PUC-RJ, PRODEMGE, entre outros partícipes).
+A ACIEG é entidade privada sem fins lucrativos de âmbito estadual (Goiás), fundada em 1937, reunindo representativamente o setor produtivo goiano — comércio, indústria e serviços. A adesão à RBB visa oferecer aos associados da ACIEG aplicações digitais baseadas em blockchain com **integração imediata com o ecossistema institucional brasileiro** (BNDES, TCU, Dataprev, Serpro, CPQD, RNP, PUC-RJ, PRODEMGE, entre outros partícipes).
 
 ## Licença
 

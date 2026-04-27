@@ -4,24 +4,28 @@ pragma solidity ^0.8.24;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 /// @title Registro de Produtores Goianos
-/// @notice Cadastro de produtores (agropecuária, mineração, indústria) elegíveis a emitir
-///         lotes rastreáveis no programa "Feito em Goiás". Controlado por um ou mais
+/// @notice Cadastro de produtores (agropecuária, sementeira, mineração, indústria) elegíveis a
+///         emitir lotes rastreáveis no programa "Feito em Goiás". Controlado por um ou mais
 ///         CADASTRADORES (ex: ACIEG, federações setoriais, órgãos estaduais).
 contract RegistroProdutores is AccessControl {
     enum Setor {
         NAO_DEFINIDO,
         AGROPECUARIA,
         MINERACAO,
-        INDUSTRIA
+        INDUSTRIA,
+        SEMENTEIRA
     }
 
     struct Produtor {
         string cnpjOuCpf;
         string nome;
-        string car;           // Cadastro Ambiental Rural (para agropecuária; opcional)
-        string municipio;     // ex: "Rio Verde/GO"
-        int256 latitudeE6;    // latitude * 1e6 (int para permitir negativo)
-        int256 longitudeE6;   // longitude * 1e6
+        string car;              // Cadastro Ambiental Rural (agropecuária; opcional)
+        string municipio;        // ex: "Rio Verde/GO"
+        int256 latitudeE6;       // latitude * 1e6 (centro do polígono / sede)
+        int256 longitudeE6;      // longitude * 1e6
+        bytes32 poligonoCARHash; // SHA-256 do GeoJSON do polígono CAR (WGS-84) — EUDR Anexo II
+        string poligonoURI;      // URI pública (ipfs:// ou https://) do GeoJSON
+        string renasem;          // nº RENASEM (apenas para SEMENTEIRA, vazio para outros)
         Setor setor;
         bool ativo;
         uint256 cadastradoEm;
@@ -41,6 +45,8 @@ contract RegistroProdutores is AccessControl {
         string municipio
     );
     event CARAtualizado(address indexed produtor, string novoCar);
+    event PoligonoAtualizado(address indexed produtor, bytes32 novoHash, string novaURI);
+    event RenasemAtualizado(address indexed produtor, string novoRenasem);
     event ProdutorSuspenso(address indexed produtor, string motivo);
     event ProdutorReativado(address indexed produtor);
 
@@ -64,6 +70,9 @@ contract RegistroProdutores is AccessControl {
         string calldata municipio,
         int256 latitudeE6,
         int256 longitudeE6,
+        bytes32 poligonoCARHash,
+        string calldata poligonoURI,
+        string calldata renasem,
         Setor setor
     ) external onlyRole(CADASTRADOR_ROLE) {
         if (bytes(cnpjOuCpf).length == 0) revert CnpjObrigatorio();
@@ -81,6 +90,9 @@ contract RegistroProdutores is AccessControl {
             municipio: municipio,
             latitudeE6: latitudeE6,
             longitudeE6: longitudeE6,
+            poligonoCARHash: poligonoCARHash,
+            poligonoURI: poligonoURI,
+            renasem: renasem,
             setor: setor,
             ativo: true,
             cadastradoEm: block.timestamp
@@ -98,6 +110,26 @@ contract RegistroProdutores is AccessControl {
         if (_produtores[produtor].cadastradoEm == 0) revert ProdutorInexistente(produtor);
         _produtores[produtor].car = novoCar;
         emit CARAtualizado(produtor, novoCar);
+    }
+
+    function atualizarPoligono(
+        address produtor,
+        bytes32 novoHash,
+        string calldata novaURI
+    ) external onlyRole(CADASTRADOR_ROLE) {
+        if (_produtores[produtor].cadastradoEm == 0) revert ProdutorInexistente(produtor);
+        _produtores[produtor].poligonoCARHash = novoHash;
+        _produtores[produtor].poligonoURI = novaURI;
+        emit PoligonoAtualizado(produtor, novoHash, novaURI);
+    }
+
+    function atualizarRenasem(address produtor, string calldata novoRenasem)
+        external
+        onlyRole(CADASTRADOR_ROLE)
+    {
+        if (_produtores[produtor].cadastradoEm == 0) revert ProdutorInexistente(produtor);
+        _produtores[produtor].renasem = novoRenasem;
+        emit RenasemAtualizado(produtor, novoRenasem);
     }
 
     function suspender(address produtor, string calldata motivo)

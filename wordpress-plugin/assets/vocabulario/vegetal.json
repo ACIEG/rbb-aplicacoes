@@ -1,0 +1,103 @@
+{
+  "setor": "vegetal",
+  "namespace": "VEG",
+  "events": {
+    "VEG.AQUISICAO_SEMENTE": {
+      "label": "Aquisição de Semente",
+      "sigla": "RENASEM",
+      "padrao": "Lei 10.711/2003 (MAPA) / OECD Seed Schemes",
+      "urn": "urn:epcglobal:cbv:bizstep:receiving"
+    },
+    "VEG.PREPARO_SOLO": {
+      "label": "Preparo de Solo",
+      "sigla": null,
+      "padrao": "GAP audits",
+      "urn": null
+    },
+    "VEG.PLANTIO": {
+      "label": "Plantio",
+      "sigla": null,
+      "padrao": "GS1 EPCIS commissioning",
+      "urn": "urn:epcglobal:cbv:bizstep:commissioning"
+    },
+    "VEG.APLICACAO_INSUMO": {
+      "label": "Aplicação de Insumo",
+      "sigla": null,
+      "padrao": "MAPA — caderno de campo",
+      "urn": "urn:epcglobal:cbv:bizstep:inspecting"
+    },
+    "VEG.MAPBIOMAS": {
+      "label": "Monitoramento Satelital",
+      "sigla": null,
+      "padrao": "EUDR Anexo II / MapBiomas / Sentinel-2",
+      "urn": null
+    },
+    "VEG.COLHEITA": {
+      "label": "Colheita",
+      "sigla": null,
+      "padrao": "FSMA 204 §1.1330(b) / GS1 creating_class_instance",
+      "urn": "urn:epcglobal:cbv:bizstep:creating_class_instance"
+    },
+    "VEG.LIMPEZA_SECAGEM": {
+      "label": "Limpeza e Secagem",
+      "sigla": null,
+      "padrao": "FSMA Initial Packing",
+      "urn": "urn:epcglobal:cbv:bizstep:packing"
+    },
+    "VEG.SILO": {
+      "label": "Armazenagem em Silo",
+      "sigla": null,
+      "padrao": "GS1 EPCIS storing",
+      "urn": "urn:epcglobal:cbv:bizstep:storing"
+    },
+    "VEG.CFO": {
+      "label": "Certificado Fitossanitário de Origem",
+      "sigla": "CFO",
+      "padrao": "IPPC ISPM 12 / IN MAPA 28/2016",
+      "urn": null
+    },
+    "VEG.CFOC": {
+      "label": "CFO Consolidado",
+      "sigla": "CFOC",
+      "padrao": "IPPC ISPM 12 / IN MAPA 28/2016",
+      "urn": null
+    },
+    "VEG.PTV": {
+      "label": "Transporte com PTV",
+      "sigla": "PTV",
+      "padrao": "Decreto 24.114/1934 (MAPA)",
+      "urn": "urn:epcglobal:cbv:bizstep:shipping"
+    },
+    "VEG.ESMAGAMENTO": {
+      "label": "Esmagamento",
+      "sigla": null,
+      "padrao": "FSMA Transformation",
+      "urn": "urn:epcglobal:cbv:bizstep:transforming"
+    },
+    "VEG.DUE": {
+      "label": "Exportação (DUE)",
+      "sigla": "DUE",
+      "padrao": "Receita Federal — Declaração Única de Exportação",
+      "urn": "urn:epcglobal:cbv:bizstep:shipping"
+    },
+    "VEG.RECEBIMENTO_DDS": {
+      "label": "Entrega Final (EUDR DDS)",
+      "sigla": "DDS",
+      "padrao": "EUDR Anexo II — Due Diligence Statement",
+      "urn": "urn:epcglobal:cbv:bizstep:receiving"
+    }
+  },
+  "commodities": {
+    "SOJA": { "label": "Soja", "ncm": "1201", "scientific": "Glycine max" },
+    "SEMENTE_SOJA": { "label": "Semente de Soja", "ncm": "1201.10", "scientific": "Glycine max (semente)" },
+    "MILHO": { "label": "Milho", "ncm": "1005", "scientific": "Zea mays" },
+    "SEMENTE_MILHO": { "label": "Semente de Milho", "ncm": "1005.10", "scientific": "Zea mays (semente)" },
+    "CAFE": { "label": "Café", "ncm": "0901", "scientific": "Coffea arabica / canephora" },
+    "CACAU": { "label": "Cacau (amêndoa)", "ncm": "1801", "scientific": "Theobroma cacao" },
+    "CANA_DE_ACUCAR": { "label": "Cana-de-açúcar", "ncm": "1212.93", "scientific": "Saccharum officinarum" },
+    "ALGODAO": { "label": "Algodão", "ncm": "5201", "scientific": "Gossypium hirsutum" },
+    "MADEIRA_CERTIFICADA": { "label": "Madeira Certificada", "ncm": "4407", "scientific": "—" },
+    "BORRACHA_NATURAL": { "label": "Borracha Natural", "ncm": "4001", "scientific": "Hevea brasiliensis" },
+    "OLEO_DE_PALMA": { "label": "Óleo de Palma", "ncm": "1511", "scientific": "Elaeis guineensis" }
+  }
+}

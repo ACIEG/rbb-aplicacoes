@@ -8,49 +8,51 @@ import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {RegistroProdutores} from "./RegistroProdutores.sol";
 
 /// @title Lotes Rastreáveis "Feito em Goiás"
-/// @notice Cada lote é um NFT (ERC-721) representando um conjunto de commodities rastreável
-///         desde a origem (produtor registrado) até o destino final. Registra toda a cadeia
-///         de custódia on-chain.
+/// @notice Cada lote é um NFT (ERC-721) representando um conjunto rastreável — vegetal, animal,
+///         mineral ou industrial. Modelo neutro: `commoditySlug` é string livre,
+///         eventos seguem 12 Critical Tracking Events (GS1 EPCIS / FSMA 204) com `subTipo`
+///         setorial namespaced (`VEG.*`, `BOV.*`, `SUI.*`, `OVI.*`, `AVE.*`, `AQU.*`, `API.*`,
+///         `MIN.*`, `MAD.*`, `IND.*`, `ENE.*`). Vocabulário canônico vive off-chain (JSON
+///         versionado por setor), permitindo cobrir qualquer commodity nova sem redeploy.
 contract RastreabilidadeLote is ERC721, AccessControl {
     using Strings for uint256;
 
-    enum Commodity {
-        NAO_DEFINIDA,
-        SOJA,
-        MILHO,
-        CARNE_BOVINA,
-        CAFE,
-        LEITE,
-        MINERIO_FERRO,
-        OUTRO
-    }
-
-    enum TipoEvento {
-        COLHEITA,
-        TRANSPORTE,
-        ARMAZENAGEM,
-        PROCESSAMENTO,
-        EXPORTACAO,
-        ENTREGA_FINAL
+    /// @notice Critical Tracking Events universais (GS1 EPCIS / FSMA 204).
+    enum CTE {
+        ORIGEM,          //  0  insumo recebido (semente, matriz, MP, pesquisa mineral)
+        PRODUCAO,        //  1  produção (plantio, criação, fabricação inicial)
+        TRATAMENTO,      //  2  intervenção (insumo, vacinação, QC linha)
+        MONITORAMENTO,   //  3  sensing/auditoria (satelital, sanitário, ambiental)
+        EXTRACAO,        //  4  "creating_class_instance" (colheita, abate, lavra)
+        BENEFICIAMENTO,  //  5  initial packing (limpeza, classificação, britagem, resfriamento)
+        ARMAZENAGEM,     //  6  storing
+        CERTIFICACAO,    //  7  fito (CFO) / sanitária (SIF) / mineral (LAOP) / industrial (INMETRO)
+        TRANSPORTE,      //  8  shipping/receiving (PTV, GTA, DOF, NF-e)
+        PROCESSAMENTO,   //  9  transformation (esmagamento, desossa, pelotização)
+        EXPORTACAO,      // 10  export shipping (DUE)
+        ENTREGA_FINAL    // 11  final receiving (EUDR DDS)
     }
 
     struct Lote {
         address produtor;
-        Commodity commodity;
+        string commoditySlug;     // ex: "SOJA" | "CARNE_SUINA" | "MEL" | "OURO" | "SEMENTE_SOJA"
         uint256 quantidadeKg;
-        uint256 dataColheita;
-        string codigoInterno;   // Código ACIEG/produtor (ex: "RIV-2026-S-0042")
+        uint256 dataInicio;       // plantio | nascimento | abertura de lavra | recebimento MP
+        uint256 dataExtracao;     // colheita | abate | lavra | finalização
+        string codigoInterno;     // ex: "RIV-2026-S-0042"
+        uint256 loteOrigem;       // tokenId do lote-pai (0 = nenhum); ex: SOJA→SEMENTE_SOJA
         bool ativo;
     }
 
     struct EventoCadeia {
-        TipoEvento tipo;
-        address ator;           // Quem registrou o evento
+        CTE cte;                 // bucket universal
+        string subTipo;          // ex: "VEG.PLANTIO" | "BOV.NASCIMENTO" | "MIN.LAVRA"
+        address ator;
         uint256 timestamp;
-        string localGPS;        // lat,long (string para flexibilidade)
-        string localNome;       // ex: "Porto de Santos / SP"
-        bytes32 hashDocumento;  // Hash de bill of lading, nota fiscal, etc.
-        string observacao;
+        string localGPS;         // "lat,long" (string flexível)
+        string localNome;        // ex: "Porto de Santos / SP"
+        bytes32 hashDocumento;   // hash de bill of lading, NF, CTRC, GTA, CFO etc.
+        string observacao;       // KDEs (ex: "RENASEM=GO 0815/2024; cultivar=BMX")
     }
 
     bytes32 public constant PRODUTOR_ROLE = keccak256("PRODUTOR_ROLE");
@@ -65,22 +67,27 @@ contract RastreabilidadeLote is ERC721, AccessControl {
     event LoteCriado(
         uint256 indexed tokenId,
         address indexed produtor,
-        Commodity commodity,
+        string commoditySlug,
         uint256 quantidadeKg,
+        uint256 loteOrigem,
         string codigoInterno
     );
     event EventoRegistrado(
         uint256 indexed tokenId,
-        TipoEvento indexed tipo,
+        CTE indexed cte,
         address indexed ator,
+        string subTipo,
         string localNome
     );
 
     error ProdutorNaoRegistradoOuInativo(address produtor);
-    error CommodityInvalida();
+    error CommoditySlugObrigatorio();
     error QuantidadeInvalida();
     error CodigoObrigatorio();
     error LoteInativo(uint256 tokenId);
+    error LoteOrigemInexistente(uint256 loteOrigem);
+    error NaoAutorizado(uint256 tokenId);
+    error TimestampFuturo(uint256 timestamp);
 
     constructor(address admin, address registroAddress)
         ERC721(unicode"Lote Rastreavel Feito em Goias", "LOTE-FG")
@@ -89,19 +96,29 @@ contract RastreabilidadeLote is ERC721, AccessControl {
         registro = RegistroProdutores(registroAddress);
     }
 
-    /// @notice Produtor registrado cria novo lote. Precisa ter PRODUTOR_ROLE OU estar ativo no registro.
+    /// @notice Produtor registrado cria novo lote. Sem auto-eventos — o produtor é responsável
+    ///         por chamar `registrarEvento` para cada marco do ciclo (plantio/nascimento,
+    ///         tratamentos, monitoramento, extração/colheita/abate/lavra etc).
+    /// @param commoditySlug Slug livre (SCREAMING_SNAKE_CASE). Vocabulário canônico off-chain.
+    /// @param loteOrigem tokenId do lote-pai (0 = nenhum); usado para vínculo semente→lavoura,
+    ///        matriz→bezerro, etc.
     function criarLote(
-        Commodity commodity,
+        string calldata commoditySlug,
         uint256 quantidadeKg,
-        uint256 dataColheita,
-        string calldata codigoInterno
+        uint256 dataInicio,
+        uint256 dataExtracao,
+        string calldata codigoInterno,
+        uint256 loteOrigem
     ) external returns (uint256 tokenId) {
         if (!registro.produtorAtivo(msg.sender)) {
             revert ProdutorNaoRegistradoOuInativo(msg.sender);
         }
-        if (commodity == Commodity.NAO_DEFINIDA) revert CommodityInvalida();
+        if (bytes(commoditySlug).length == 0) revert CommoditySlugObrigatorio();
         if (quantidadeKg == 0) revert QuantidadeInvalida();
         if (bytes(codigoInterno).length == 0) revert CodigoObrigatorio();
+        if (loteOrigem != 0 && _lotes[loteOrigem].produtor == address(0)) {
+            revert LoteOrigemInexistente(loteOrigem);
+        }
 
         unchecked {
             tokenId = ++_proximoId;
@@ -109,49 +126,48 @@ contract RastreabilidadeLote is ERC721, AccessControl {
 
         _lotes[tokenId] = Lote({
             produtor: msg.sender,
-            commodity: commodity,
+            commoditySlug: commoditySlug,
             quantidadeKg: quantidadeKg,
-            dataColheita: dataColheita,
+            dataInicio: dataInicio,
+            dataExtracao: dataExtracao,
             codigoInterno: codigoInterno,
+            loteOrigem: loteOrigem,
             ativo: true
         });
 
-        // Primeiro evento da cadeia: colheita na propriedade do produtor
-        RegistroProdutores.Produtor memory p = registro.dadosProdutor(msg.sender);
-        _historico[tokenId].push(
-            EventoCadeia({
-                tipo: TipoEvento.COLHEITA,
-                ator: msg.sender,
-                timestamp: dataColheita,
-                localGPS: _formatGPS(p.latitudeE6, p.longitudeE6),
-                localNome: p.municipio,
-                hashDocumento: bytes32(0),
-                observacao: "Colheita na propriedade do produtor"
-            })
-        );
-
         _safeMint(msg.sender, tokenId);
 
-        emit LoteCriado(tokenId, msg.sender, commodity, quantidadeKg, codigoInterno);
+        emit LoteCriado(tokenId, msg.sender, commoditySlug, quantidadeKg, loteOrigem, codigoInterno);
     }
 
-    /// @notice Registra um evento na cadeia de custódia (transporte, armazenagem, processamento, exportação).
+    /// @notice Registra um evento da cadeia de custódia. Caller deve ser o dono atual do lote.
+    /// @param cte Bucket universal CTE (ORIGEM, PRODUCAO, TRATAMENTO, ..., ENTREGA_FINAL).
+    /// @param subTipo Especialização setorial (ex: "VEG.PLANTIO", "BOV.ABATE"). String livre.
+    /// @param timestamp Momento do evento (pode ser retroativo — útil para registrar
+    ///        AQUISICAO_SEMENTE/PLANTIO depois do mint, com data anterior). 0 usa block.timestamp.
     function registrarEvento(
         uint256 tokenId,
-        TipoEvento tipo,
+        CTE cte,
+        string calldata subTipo,
+        uint256 timestamp,
         string calldata localGPS,
         string calldata localNome,
         bytes32 hashDocumento,
         string calldata observacao
     ) external {
-        _requireOwned(tokenId);
+        address owner = _requireOwned(tokenId);
+        if (owner != msg.sender) revert NaoAutorizado(tokenId);
         if (!_lotes[tokenId].ativo) revert LoteInativo(tokenId);
+
+        if (timestamp != 0 && timestamp > block.timestamp) revert TimestampFuturo(timestamp);
+        uint256 ts = timestamp == 0 ? block.timestamp : timestamp;
 
         _historico[tokenId].push(
             EventoCadeia({
-                tipo: tipo,
+                cte: cte,
+                subTipo: subTipo,
                 ator: msg.sender,
-                timestamp: block.timestamp,
+                timestamp: ts,
                 localGPS: localGPS,
                 localNome: localNome,
                 hashDocumento: hashDocumento,
@@ -159,9 +175,13 @@ contract RastreabilidadeLote is ERC721, AccessControl {
             })
         );
 
-        emit EventoRegistrado(tokenId, tipo, msg.sender, localNome);
+        emit EventoRegistrado(tokenId, cte, msg.sender, subTipo, localNome);
     }
 
+    /// @notice Retorna o lote + histórico **ordenado por timestamp ascendente**.
+    /// @dev Storage permanece em ordem de inserção (append cheap). Sort em memory garante
+    ///      cronologia consistente para todos os consumidores, mesmo que eventos pré-extração
+    ///      sejam registrados retroativamente após mint.
     function historicoCompleto(uint256 tokenId)
         external
         view
@@ -169,7 +189,23 @@ contract RastreabilidadeLote is ERC721, AccessControl {
     {
         _requireOwned(tokenId);
         lote = _lotes[tokenId];
-        eventos = _historico[tokenId];
+
+        EventoCadeia[] storage src = _historico[tokenId];
+        uint256 n = src.length;
+        eventos = new EventoCadeia[](n);
+        for (uint256 i = 0; i < n; i++) {
+            eventos[i] = src[i];
+        }
+        // Insertion sort por timestamp ascendente (n tipicamente <30).
+        for (uint256 i = 1; i < n; i++) {
+            EventoCadeia memory key = eventos[i];
+            uint256 j = i;
+            while (j > 0 && eventos[j - 1].timestamp > key.timestamp) {
+                eventos[j] = eventos[j - 1];
+                unchecked { j--; }
+            }
+            eventos[j] = key;
+        }
     }
 
     function totalEventos(uint256 tokenId) external view returns (uint256) {
@@ -189,38 +225,18 @@ contract RastreabilidadeLote is ERC721, AccessControl {
         bytes memory json = abi.encodePacked(
             '{"name":"Lote FG #',
             tokenId.toString(),
-            unicode'","description":"Lote rastreavel Feito em Goias registrado na RBB. Historico completo disponivel via historicoCompleto().",',
+            unicode'","description":"Lote rastreavel Feito em Goias registrado na RBB. Historico completo via historicoCompleto().",',
             '"attributes":[',
             '{"trait_type":"Codigo","value":"', l.codigoInterno, '"},',
-            '{"trait_type":"Commodity","value":"', _commodityStr(l.commodity), '"},',
+            '{"trait_type":"Commodity","value":"', l.commoditySlug, '"},',
             '{"trait_type":"Quantidade (kg)","value":', l.quantidadeKg.toString(), "},",
-            '{"trait_type":"Data Colheita","display_type":"date","value":', l.dataColheita.toString(), "},",
+            '{"trait_type":"Data Inicio","display_type":"date","value":', l.dataInicio.toString(), "},",
+            '{"trait_type":"Data Extracao","display_type":"date","value":', l.dataExtracao.toString(), "},",
+            '{"trait_type":"Lote Origem","value":', l.loteOrigem.toString(), "},",
             '{"trait_type":"Eventos","value":', _historico[tokenId].length.toString(), "}",
             "]}"
         );
         return string(abi.encodePacked("data:application/json;base64,", Base64.encode(json)));
-    }
-
-    function _commodityStr(Commodity c) private pure returns (string memory) {
-        if (c == Commodity.SOJA) return "Soja";
-        if (c == Commodity.MILHO) return "Milho";
-        if (c == Commodity.CARNE_BOVINA) return "Carne Bovina";
-        if (c == Commodity.CAFE) return "Cafe";
-        if (c == Commodity.LEITE) return "Leite";
-        if (c == Commodity.MINERIO_FERRO) return "Minerio de Ferro";
-        return "Outro";
-    }
-
-    function _formatGPS(int256 latE6, int256 lonE6) private pure returns (string memory) {
-        return string(abi.encodePacked(_intToStr(latE6), ",", _intToStr(lonE6)));
-    }
-
-    function _intToStr(int256 v) private pure returns (string memory) {
-        if (v == 0) return "0";
-        bool neg = v < 0;
-        uint256 u = uint256(neg ? -v : v);
-        string memory s = u.toString();
-        return neg ? string(abi.encodePacked("-", s)) : s;
     }
 
     function supportsInterface(bytes4 interfaceId)

@@ -9,7 +9,6 @@ import {
 
 describe("CertificadosConformidade", () => {
   const SETOR_AGRO = 1;
-  const COMMODITY_SOJA = 1;
   const TIPO_EUDR = 1;
   const TIPO_ESG = 2;
   const HASH_DOC = "0x" + "ab".repeat(32);
@@ -28,15 +27,19 @@ describe("CertificadosConformidade", () => {
       "Rio Verde/GO",
       0,
       0,
+      ethers.ZeroHash,
+      "",
+      "",
       SETOR_AGRO
     );
 
     const Lote = await ethers.getContractFactory("RastreabilidadeLote");
     const lote = (await Lote.deploy(admin.address, await reg.getAddress())) as unknown as RastreabilidadeLote;
     await lote.waitForDeployment();
+    const now = await time.latest();
     await lote
       .connect(produtor)
-      .criarLote(COMMODITY_SOJA, 50000, await time.latest(), "RIV-2026-S-0042");
+      .criarLote("SOJA", 50000, now - 86400, now, "RIV-2026-S-0042", 0);
 
     const Cert = await ethers.getContractFactory("CertificadosConformidade");
     const cert = (await Cert.deploy(admin.address, await lote.getAddress())) as unknown as CertificadosConformidade;

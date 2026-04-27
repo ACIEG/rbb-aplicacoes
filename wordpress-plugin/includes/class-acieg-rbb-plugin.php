@@ -125,16 +125,17 @@ class Acieg_Rbb_Plugin {
 	public static function frontend_config() {
 		$settings = self::get_settings();
 		return array(
-			'rpcUrl'       => esc_url_raw( $settings['rpc_url'] ),
-			'chainId'      => preg_replace( '/\D/', '', (string) $settings['chain_id'] ),
-			'contracts'    => array(
+			'rpcUrl'             => esc_url_raw( $settings['rpc_url'] ),
+			'chainId'            => preg_replace( '/\D/', '', (string) $settings['chain_id'] ),
+			'contracts'          => array(
 				'selo'              => $settings['address_selo'],
 				'certificado'       => $settings['address_certificado'],
 				'registroProdutor'  => $settings['address_registro_produtores'],
 				'rastreabilidade'   => $settings['address_rastreabilidade'],
 				'certificadosConf'  => $settings['address_certificados_conformidade'],
 			),
-			'explorerBase' => esc_url_raw( $settings['explorer_base'] ),
+			'vocabularioBaseUrl' => ACIEG_RBB_PLUGIN_URL . 'assets/vocabulario/',
+			'explorerBase'       => esc_url_raw( $settings['explorer_base'] ),
 			'i18n'         => array(
 				'loading'        => __( 'Consultando a blockchain...', 'acieg-rbb-verificador' ),
 				'notFound'       => __( 'Registro não encontrado.', 'acieg-rbb-verificador' ),
@@ -147,7 +148,11 @@ class Acieg_Rbb_Plugin {
 				'verify'         => __( 'Verificar', 'acieg-rbb-verificador' ),
 				'seloTitle'      => __( 'Selo Digital de Associado ACIEG', 'acieg-rbb-verificador' ),
 				'certTitle'      => __( 'Certificado de Capacitação ACIEG', 'acieg-rbb-verificador' ),
-				'rastreioTitle'  => __( 'Rastreabilidade "Feito em Goiás"', 'acieg-rbb-verificador' ),
+				'rastreioTitle'  => __( 'Rastreabilidade "Feito em Goiás" — da Origem à Entrega Final', 'acieg-rbb-verificador' ),
+				'origemLote'     => __( 'Origem do lote', 'acieg-rbb-verificador' ),
+				'loteOrigem'     => __( 'Lote-pai', 'acieg-rbb-verificador' ),
+				'verPoligono'    => __( 'Ver polígono CAR', 'acieg-rbb-verificador' ),
+				'conformidade'   => __( 'Conformidade regulatória', 'acieg-rbb-verificador' ),
 				'razaoSocial'    => __( 'Razão social', 'acieg-rbb-verificador' ),
 				'setor'          => __( 'Setor', 'acieg-rbb-verificador' ),
 				'validoAte'      => __( 'Válido até', 'acieg-rbb-verificador' ),
