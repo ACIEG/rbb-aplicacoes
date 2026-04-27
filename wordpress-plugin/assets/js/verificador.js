@@ -385,8 +385,9 @@
       try {
         var reg = new ethers.Contract(addrReg, ABI_REG, prov);
         var prod = await reg.dadosProdutor(info.produtor);
-        var poligonoLink = prod.poligonoURI
-          ? '<a href="' + esc(prod.poligonoURI) + '" target="_blank" rel="noopener">' + esc(i18n.verPoligono || "Ver polígono CAR") + "</a>"
+        var safePoligonoUri = /^https?:\/\//i.test(prod.poligonoURI) || /^ipfs:\/\//i.test(prod.poligonoURI) ? prod.poligonoURI : null;
+        var poligonoLink = safePoligonoUri
+          ? '<a href="' + esc(safePoligonoUri) + '" target="_blank" rel="noopener">' + esc(i18n.verPoligono || "Ver polígono CAR") + "</a>"
           : "—";
         origemHtml =
           "<dl>" +
