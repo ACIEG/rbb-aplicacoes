@@ -6,8 +6,8 @@ Três contratos Solidity coordenados que registram on-chain a origem e a cadeia 
 
 Goiás é a 4ª maior economia agropecuária do Brasil, e os compradores internacionais — sobretudo a União Europeia a partir de 2026 — **exigem comprovação digital de origem e cadeia produtiva**:
 
-- **EUDR (Regulamento EU 2023/1115)**: prova de que nenhum produto importado tem origem em área desmatada pós-2020, com geolocation data por talhão (ponto ou polígono GeoJSON, WGS-84). Vigência operadores: 30/Dez/2025.
-- **FSMA 204 (FDA)**: rastreabilidade de Critical Tracking Events com Key Data Elements para alimentos importados nos EUA. Compliance: 20/Jan/2026.
+- **EUDR (Regulamento EU 2023/1115)**: prova de que nenhum produto importado tem origem em área desmatada pós-31/Dez/2020, com geolocation data por talhão (ponto ou polígono GeoJSON, WGS-84). Vigência operadores: **30/Dez/2026 para grandes e médias empresas; 30/Jun/2027 para pequenas, micro e pessoas físicas** (datas confirmadas após segundo adiamento via Regulation EU 2025/2650, publicada no Diário Oficial da UE em 23/Dez/2025; pacote de simplificação da Comissão Europeia de 04/Mai/2026 manteve as datas).
+- **FSMA 204 (FDA)**: rastreabilidade de Critical Tracking Events com Key Data Elements para alimentos importados nos EUA. Compliance: **20/Jul/2028** (a FDA estendeu o prazo original de 20/Jan/2026 em 30 meses; o Continuing Appropriations Act de Nov/2025 do Congresso americano direcionou que a FDA não execute a regra antes dessa data).
 - **CBAM (Carbon Border Adjustment Mechanism)**: histórico de emissões na cadeia.
 - **ESG / sustentabilidade**: fundos e grandes varejistas exigem dados auditáveis.
 
