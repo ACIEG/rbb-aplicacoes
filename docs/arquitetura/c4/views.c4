@@ -1,0 +1,33 @@
+views {
+  view index {
+    title 'Contexto: a ACIEG na Rede Blockchain Brasil'
+    description 'Quem se relaciona com quem, no nível de organizações e sistemas.'
+    include acieg, rbb, rbb.partners, rbb.permissioning, publicObservers, operator, governance, adminKey
+    exclude acieg.*
+    autoLayout LeftRight
+  }
+
+  view nodes of acieg {
+    title 'Nós da ACIEG e como se comunicam'
+    description 'Topologia núcleo/satélite do roteiro da RBB, com portas e protocolos.'
+    include *, rbb.partners.*, rbb.permissioning, publicObservers, adminKey
+    style acieg.* { color primary }
+    style element.tag = #core { color primary }
+    style element.tag = #satellite { color secondary }
+    style rbb.partners.* { color muted }
+    autoLayout TopBottom
+  }
+
+  view monitoring of acieg.prometheus01 {
+    title 'Monitoração e federação'
+    include *, -> acieg.prometheus01 ->, rbb.partners.partnerPrometheus
+    autoLayout LeftRight
+  }
+
+  deployment view lab {
+    title 'Implantação: testnet (rede lab)'
+    description 'VMs na Magalu Cloud, cofre de chaves na AWS e demais partícipes.'
+    include magalu, magalu.**, aws, aws.saeast1, aws.saeast1.*, aws.saeast1.kms.*, internet, internet.*
+    autoLayout LeftRight
+  }
+}
