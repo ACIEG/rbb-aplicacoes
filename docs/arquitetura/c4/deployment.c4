@@ -1,0 +1,49 @@
+// Modelo de implantação: onde cada elemento roda.
+deployment {
+  magalu = cloud 'Magalu Cloud' {
+    technology 'conta da ACIEG'
+    brse1 = region 'br-se1 (São Paulo), zona a' {
+      lab = vpc 'acieg-rbb-lab-vpc  10.120.0.0/16' {
+        description 'Sub-rede dos nós 10.120.1.0/24. NAT gateway para saída dos nós privados. Um security group por nó, sem regras padrão.'
+        vmBoot = vm 'boot01  BV2-4-20  100 GB' {
+          instanceOf acieg.boot01
+        }
+        vmValidator = vm 'validator01  BV2-4-20  150 GB' {
+          instanceOf acieg.validator01
+        }
+        vmWriter = vm 'writer01  BV2-4-20  100 GB' {
+          instanceOf acieg.writer01
+        }
+        vmObserverBoot = vm 'observer-boot01  BV2-4-20  100 GB' {
+          instanceOf acieg.observerBoot01
+        }
+        vmObserver = vm 'observer01  BV4-8-20  300 GB' {
+          instanceOf acieg.observer01
+        }
+        vmPrometheus = vm 'prometheus01  BV2-4-20' {
+          instanceOf acieg.prometheus01
+        }
+      }
+    }
+  }
+  aws = cloud 'AWS' {
+    technology 'conta da ACIEG 639175159711'
+    saeast1 = region 'sa-east-1 (São Paulo)' {
+      kms = managed 'KMS + CloudTrail' {
+        instanceOf adminKey
+      }
+      state = managed 'S3: estado do OpenTofu' {
+        description 'acieg-rbb-tofu-state-… (versionado, bloqueio de concorrência)'
+      }
+    }
+  }
+  // Transações de permissionamento/governança: assinadas no KMS, enviadas pelo RPC do writer01 (só na VPC).
+  aws.saeast1.kms.adminKey -[rpc]-> magalu.brse1.lab.vmWriter.writer01 'envia transações assinadas (via salto SSH)'
+
+  internet = cloud 'Internet / demais partícipes' {
+    instanceOf rbb.partners.partnerValidators
+    instanceOf rbb.partners.partnerBoots
+    instanceOf rbb.partners.partnerPrometheus
+    instanceOf publicObservers
+  }
+}

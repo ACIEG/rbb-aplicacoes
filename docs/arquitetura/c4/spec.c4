@@ -1,0 +1,73 @@
+// Especificação: tipos de elementos, nós de implantação e relações usados no modelo da RBB.
+specification {
+  element actor {
+    style { shape person }
+  }
+  element organization {
+    style { color secondary }
+  }
+  element network {
+    style { color muted; shape rectangle }
+  }
+  element nodeGroup {
+    style { color muted; shape rectangle; opacity 20% }
+  }
+  element besuNode {
+    technology 'Hyperledger Besu 25.5.0'
+    style { shape rectangle }
+  }
+  element service
+  element contract {
+    technology 'Solidity (gen02)'
+    style { shape storage }
+  }
+  element keyVault {
+    style { shape storage; color amber }
+  }
+
+  relationship p2p {
+    title 'P2P'
+    technology 'devp2p/RLPx, TCP+UDP 30303'
+  }
+  relationship rpc {
+    title 'JSON-RPC'
+    technology 'HTTP 8545 (só VPC)'
+  }
+  relationship metrics {
+    title 'coleta métricas'
+    technology 'HTTP 9545 (só VPC)'
+  }
+  relationship federation {
+    title 'federação de métricas'
+    technology 'HTTPS mTLS 8443'
+  }
+  relationship ssh {
+    title 'administra'
+    technology 'SSH 22 (IP do escritório / salto)'
+  }
+  relationship sign {
+    title 'assina'
+    technology 'AWS KMS Sign (secp256k1)'
+  }
+
+  deploymentNode cloud {
+    style { color muted }
+  }
+  deploymentNode region
+  deploymentNode vpc {
+    notation 'VPC'
+    style { color muted }
+  }
+  deploymentNode vm {
+    notation 'Máquina virtual'
+  }
+  deploymentNode managed {
+    notation 'Serviço gerenciado'
+  }
+
+  tag core
+  tag satellite
+  tag public
+  tag private
+  tag archive
+}

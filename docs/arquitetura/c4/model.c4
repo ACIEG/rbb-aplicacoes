@@ -1,0 +1,122 @@
+// Modelo lógico: a ACIEG na Rede Blockchain Brasil (rede lab / testnet).
+model {
+  publicObservers = actor 'Observers do público' {
+    description 'Qualquer nó de leitura na internet (cidadãos, exploradores de blocos).'
+  }
+  operator = actor 'Operação técnica' {
+    description 'Tracetus, sob contrato com a ACIEG. Acesso revogável.'
+  }
+  governance = actor 'Governança da RBB' {
+    description 'Comitês Executivo e Técnico; propostas on chain (gen02).'
+  }
+
+  rbb = network 'Rede Blockchain Brasil (lab)' {
+    description '''
+      Rede público-permissionada, Besu + QBFT, chainId 648629.
+      Bloco a cada 4 s. Permissionamento on chain de nós e contas.
+    '''
+    partners = nodeGroup 'Outras organizações' {
+      description 'BNDES, TCU, Dataprev, PUC-Rio, RNP, Prodemge, CPqD, Serpro, IBICT, Plexos.'
+      partnerValidators = besuNode 'Validators' {
+        #core
+        description '13 validators ativos (IPs públicos documentados no nodes.json).'
+      }
+      partnerBoots = besuNode 'Boots' {
+        #core
+        description '9 boots ativos; ponto de entrada dos writers de parceiros e observer-boots.'
+      }
+      partnerObserverBoots = besuNode 'Observer-boots' {
+        #satellite #public
+      }
+      partnerPrometheus = service 'Prometheus das organizações' {
+        technology 'Prometheus + NGINX mTLS'
+        description '14 endpoints federados (porta 8443).'
+      }
+    }
+    permissioning = contract 'Permissionamento gen02' {
+      description '''
+        NodeIngress 0x…9999 / AccountIngress 0x…8888 → NodeRulesV2, AccountRulesV2,
+        Organization, Governance. Só nós e contas permissionados conectam e transacionam.
+      '''
+    }
+  }
+
+  acieg = organization 'ACIEG' {
+    description '''
+      Partícipe associado (validator, boot, writer, observer-boot).
+      Infraestrutura na Magalu Cloud (br-se1), provisionada com OpenTofu.
+    '''
+
+    boot01 = besuNode 'boot01' {
+      #core #public
+      description 'Conector: liga o núcleo da ACIEG aos boots da rede. IP público 201.23.76.119, interno 10.120.1.11.'
+    }
+    validator01 = besuNode 'validator01' {
+      #core #public
+      description 'Participa do consenso QBFT (após permissionamento e votação). IP público 201.23.73.56, interno 10.120.1.21. id 0x7cd4…3821.'
+    }
+    writer01 = besuNode 'writer01' {
+      #satellite #private
+      description 'Recebe transações das aplicações da ACIEG. Só na VPC: 10.120.1.31. Saída via NAT.'
+    }
+    observerBoot01 = besuNode 'observer-boot01' {
+      #satellite #public
+      description 'Ponto de acesso público para leitura; recusa qualquer transação (allowlist de contas vazia). IP público 201.23.69.159, interno 10.120.1.41.'
+    }
+    observer01 = besuNode 'observer01' {
+      #satellite #private #archive
+      technology 'Besu 25.5.0, Forest + sync FULL (archive)'
+      description 'Nó interno de leitura com histórico completo, para explorador de blocos, auditoria e indicadores. 10.120.1.51, volume 300 GB.'
+    }
+    prometheus01 = service 'prometheus01' {
+      technology 'Prometheus 3.5 + NGINX (mTLS)'
+      description 'Coleta os nós da ACIEG e federa com as demais organizações. IP público 169.150.0.151 (8443), interno 10.120.1.61.'
+    }
+    apps = service 'Aplicações da ACIEG' {
+      technology 'Solidity + WordPress (rbb-aplicacoes)'
+      description 'Selo Digital de Associado, Certificados Verificáveis, Rastreabilidade "Feito em Goiás".'
+    }
+
+    // Topologia núcleo/satélite (roteiro de adição de nós, passo 3)
+    validator01 -[p2p]<-> rbb.partners.partnerValidators 'static-nodes (todos os validators)'
+    validator01 -[p2p]<-> boot01 'static-nodes (IP interno)'
+    boot01 -[p2p]<-> rbb.partners.partnerBoots 'discovery (bootnodes)'
+    writer01 -[p2p]-> boot01 'static-nodes (IP interno)'
+    observerBoot01 -[p2p]-> boot01 'static-nodes (IP interno)'
+    observer01 -[p2p]-> observerBoot01 'static-nodes (IP interno)'
+    publicObservers -[p2p]-> observerBoot01 'discovery público'
+
+    // Aplicações e leitura
+    apps -[rpc]-> writer01 'envia transações'
+    apps -[rpc]-> observer01 'consultas históricas'
+
+    // Monitoração (roteiro, passo 5)
+    prometheus01 -[metrics]-> boot01
+    prometheus01 -[metrics]-> validator01
+    prometheus01 -[metrics]-> writer01
+    prometheus01 -[metrics]-> observerBoot01
+    prometheus01 -[metrics]-> observer01
+    prometheus01 -[federation]<-> rbb.partners.partnerPrometheus 'job rbb-federado'
+
+    // Permissionamento
+    boot01 -> rbb.permissioning 'consulta connectionAllowed'
+    validator01 -> rbb.permissioning 'consulta connectionAllowed'
+    writer01 -> rbb.permissioning 'consulta connectionAllowed / transactionAllowed'
+  }
+
+  adminKey = keyVault 'Administrador Global da ACIEG (lab)' {
+    technology 'AWS KMS, sa-east-1, não exportável'
+    description '''
+      alias/acieg-rbb-lab-admin — endereço 0xD0891b2365B119705884638C71C05D7FAD3cfAdF.
+      Papel de assinatura só com kms:Sign; uso registrado em CloudTrail com Object Lock (5 anos).
+    '''
+  }
+
+  operator -[ssh]-> acieg.boot01 'salto para os nós privados'
+  operator -[ssh]-> acieg.validator01
+  operator -[ssh]-> acieg.observerBoot01
+  operator -[ssh]-> acieg.prometheus01
+  operator -[sign]-> adminKey 'assume papel acieg-rbb-lab-admin-signer'
+  adminKey -> rbb.permissioning 'addLocalNode / votos de governança (via RPC do writer01)'
+  governance -> rbb.permissioning 'propostas: inclusão da ACIEG, Administrador Global, nós'
+}
